@@ -1,0 +1,30 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "url": "URL",
+                    "site": "Site",
+                    "username": "Username",
+                    "password": "Password",
+                    "verify_ssl": "Verify SSL"
+                }
+            }
+        },
+        "error": {
+            "service_unavailable": "Unable to connect to service.",
+            "faulty_credentials": "Invalid username or password."
+        }
+    },
+    "options": {
+        "step": {
+            "device_tracker": {
+                "data": {
+                    "ssid_filter": "Select SSIDs to track wireless clients on"
+                },
+                "description": "Configure device tracking",
+                "title": "Omada options"
+            }
+        }
+    }
+}
