@@ -17,6 +17,7 @@ from .errors import (AuthenticationRequired, CannotConnect)
 from .const import (
     CONF_SITE,
     CONF_SSID_FILTER,
+    DATA_OMADA,
     DOMAIN as OMADA_DOMAIN
 )
 
@@ -94,6 +95,8 @@ class OmadaController:
             async_track_time_interval(self.hass, self.update_all, SCAN_INTERVAL)
         )
 
+        self._config_entry.add_update_listener(self.async_config_entry_updated)
+
     async def update_all(self, now):
         await self.update_devices()
 
@@ -130,7 +133,7 @@ class OmadaController:
 
     @staticmethod
     async def async_config_entry_updated(hass, config_entry):
-        if not (controller := hass.data[OMADA_DOMAIN].get(config_entry.entry_id)):
+        if not (controller := hass.data[OMADA_DOMAIN].get(config_entry.entry_id)[DATA_OMADA]):
             return
 
         controller.load_config_entry_options()

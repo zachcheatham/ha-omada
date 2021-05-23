@@ -47,9 +47,9 @@ DISCONNECTED_ATTRIBUTES = (
     "last_seen"
 )
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(hass, config_entry, async_add_entities):
 
-    controller: OmadaController = hass.data[OMADA_DOMAIN][entry.entry_id][DATA_OMADA]
+    controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id][DATA_OMADA]
     controller.entities[DOMAIN] = set()
 
     def get_clients_filtered():
@@ -70,7 +70,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def items_added(clients: set = get_clients_filtered()):
         add_client_entities(controller, async_add_entities, clients)
 
-    entry.async_on_unload(
+    config_entry.async_on_unload(
         async_dispatcher_connect(hass, controller.signal_update, items_added)
     )
 
@@ -82,12 +82,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
         initial_clients.add(mac)
 
     # Add entries that used to exist in HA but are now disconnected.
-    for entry in async_entries_for_config_entry(entity_registry, entry.entry_id):
+    for entry in async_entries_for_config_entry(entity_registry, config_entry.entry_id):
         mac = entry.unique_id
         
         if mac not in controller.api.clients:
             if mac in controller.api.known_clients:
                 initial_clients.add(mac)
+        elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
+            entity_registry.async_remove(entry.entity_id)
 
     items_added(initial_clients)
 
@@ -178,11 +180,18 @@ class OmadaClientTracker(ScannerEntity):
             await self.remove()
 
     async def async_added_to_hass(self):
-        """Register state update callback."""
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
                 self._controller.signal_update,
                 self.async_update,
+            )
+        )
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                self._controller.signal_options_update,
+                self.options_updated,
             )
         )
