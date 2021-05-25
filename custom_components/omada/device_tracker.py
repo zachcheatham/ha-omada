@@ -126,7 +126,10 @@ class OmadaClientTracker(ScannerEntity):
 
     @property
     def name(self) -> str:
-        return self._controller.api.known_clients[self._mac].name
+        if self._mac in self._controller.api.known_clients:
+            return self._controller.api.known_clients[self._mac].name
+        else:
+            return self._mac
 
     @property
     def is_connected(self) -> bool:
