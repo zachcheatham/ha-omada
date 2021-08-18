@@ -7,20 +7,25 @@ LOGGER = logging.getLogger(__name__)
 
 class APIItems:
 
-    def __init__(self, request, end_point, key, item_cls):
+    def __init__(self, request, end_point, key, item_cls, data_key: str = ""):
         self._request = request
         self._end_point = end_point
         self.items = {}
         self._key = key
         self._item_cls = item_cls
+        self._data_key = data_key
 
     async def update(self):
         response = await self._request("GET", self._end_point, params=[("filters.active", "true"), ("currentPage", "1"), ("currentPageSize", "1000000")])
 
-        if "data" in response:
-            self._process_raw(response["data"])
+        if self._data_key == "":
+            # Response is a list
+            self._process_raw(response)
+        elif self._data_key in response:
+            # Response is a dict, process a specific key containing a list
+            self._process_raw(response[self._data_key])
         else:
-            raise OmadaApiException(f"Unable to parse {{self._end_point}}: 'data' array not available in response.")
+            raise OmadaApiException(f"Unable to parse {{self._end_point}}: '{self._data_key}' array not available in response.")
 
     def _process_raw(self, raw):
         present_items = set()
