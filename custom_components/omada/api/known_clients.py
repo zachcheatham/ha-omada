@@ -5,7 +5,7 @@ END_POINT = "/insight/clients"
 class KnownClients(APIItems):
 
     def __init__(self, request):
-        super().__init__(request, END_POINT, "mac", KnownClient)
+        super().__init__(request, END_POINT, "mac", KnownClient, data_key="data")
 
 class KnownClient(APIItem):
 
