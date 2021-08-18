@@ -98,7 +98,6 @@ class Controller:
         except client_exceptions.ClientError as err:
             raise RequestError(f"Error requesting data from {url}: {err}") from None
 
-    
 
     def _raiseOnResponseError(self, response):
         if not isinstance(response, dict):

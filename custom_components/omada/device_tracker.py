@@ -30,22 +30,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean
 })
 
-CONNECTED_ATTRIBUTES = (
-    "ip",
-    "wireless",
-    "ssid",
-    "ap_mac",
-    "signal_level",
-    "rssi",
-    "uptime",
-    "guest"
-)
-
-DISCONNECTED_ATTRIBUTES = (
-    "wireless",
-    "guest",
-    "last_seen"
-)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
 
@@ -109,6 +93,23 @@ def add_client_entities(controller: Controller, async_add_entities, clients):
 
 class OmadaClientTracker(ScannerEntity):
 
+    CONNECTED_ATTRIBUTES = (
+        "ip",
+        "wireless",
+        "ssid",
+        "ap_mac",
+        "signal_level",
+        "rssi",
+        "uptime",
+        "guest"
+    )
+
+    DISCONNECTED_ATTRIBUTES = (
+        "wireless",
+        "guest",
+        "last_seen"
+    )
+
     DOMAIN = DOMAIN
 
     def __init__(self, controller: OmadaController, mac):
@@ -138,12 +139,12 @@ class OmadaClientTracker(ScannerEntity):
         if self.is_connected:
             client=self._controller.api.clients[self._mac]
             return {
-                k: getattr(client, k) for k in CONNECTED_ATTRIBUTES
+                k: getattr(client, k) for k in self.CONNECTED_ATTRIBUTES
             }
         elif self._mac in self._controller.api.known_clients:
             client=self._controller.api.known_clients[self._mac]
             return {
-                k: getattr(client, k) for k in DISCONNECTED_ATTRIBUTES
+                k: getattr(client, k) for k in self.DISCONNECTED_ATTRIBUTES
             }
         else:
             None
@@ -197,4 +198,32 @@ class OmadaClientTracker(ScannerEntity):
         )
 
 class OmadaDeviceTracker(OmadaClientTracker):
-    pass
+    
+    ATTRIBUTES = (
+        "type",
+        "model",
+        "model_version",
+        "client_count",
+    )
+
+    @property
+    def name(self) -> str:
+        return f"{self._controller.site} Device {self._controller.api.devices[self._mac].name}"
+
+    @property
+    def is_connected(self) -> bool:
+        return self._mac in self._controller.api.devices
+
+    @property
+    def extra_state_attributes(self):
+        device=self._controller.api.devices[self._mac]
+        return {
+            k: getattr(device, k) for k in self.ATTRIBUTES
+        }
+        
+    @callback
+    async def async_update(self):
+        self.async_write_ha_state()
+
+    async def options_updated(self):
+        pass
