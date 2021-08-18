@@ -77,6 +77,20 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     items_added(initial_clients)
 
+    def get_devices():
+        devices = set()
+        
+        for mac in controller.api.devices:
+            device = controller.api.deices[mac]
+            devices.add(device.mac)
+
+        return devices
+
+    @callback
+    def devices_added(devices: set = get_devices()):
+        add_device_entities(controller, async_add_entities, devices)
+
+    devices_added()
 
 @callback
 def add_client_entities(controller: Controller, async_add_entities, clients):
@@ -90,6 +104,20 @@ def add_client_entities(controller: Controller, async_add_entities, clients):
 
     if trackers:
         async_add_entities(trackers)
+
+@callback
+def add_device_entities(controller: Controller, async_add_entities, devices):
+    trackers = []
+
+    for mac in devices:
+        if mac in controller.entities[DOMAIN]:
+            continue
+
+        trackers.append(OmadaDeviceTracker(controller, mac))
+
+    if trackers:
+        async_add_entities(trackers)
+
 
 class OmadaClientTracker(ScannerEntity):
 
