@@ -117,7 +117,7 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @property
     def is_connected(self) -> bool:
-        return self._controller.api.devices[self._mac].status_category == 1
+        return self._controller.api.devices[self._mac].status == 14
 
     @property
     def ip_address(self) -> str:
