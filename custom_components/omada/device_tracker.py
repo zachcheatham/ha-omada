@@ -34,46 +34,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id][DATA_OMADA]
     controller.entities[DOMAIN] = set()
 
-    def get_clients_filtered():
-        clients = set()
-        
-        for mac in controller.api.clients:
-            client = controller.api.clients[mac]
-
-            # Skip adding client if not connected to ssid in filter list
-            if controller.option_ssid_filter and client.ssid not in controller.option_ssid_filter:
-                continue
-
-            clients.add(client.mac)
-
-        return clients
-
     @callback
-    def items_added(clients: set = controller.api.devices):
-        add_entities(controller, async_add_entities, clients)
+    def items_added(devices: set = controller.api.devices):
+        add_entities(controller, async_add_entities, devices)
 
     config_entry.async_on_unload(
         async_dispatcher_connect(hass, controller.signal_update, items_added)
     )
 
-    entity_registry = await hass.helpers.entity_registry.async_get_registry()
-    initial_clients=set()
+    initial=set()
 
     # Add connected entries
-    for mac in get_clients_filtered():
-        initial_clients.add(mac)
+    for mac in controller.api.devices:
+        initial.add(mac)
 
-    # Add entries that used to exist in HA but are now disconnected.
-    for entry in async_entries_for_config_entry(entity_registry, config_entry.entry_id):
-        mac = entry.unique_id
-        
-        if mac not in controller.api.clients:
-            if mac in controller.api.known_clients:
-                initial_clients.add(mac)
-        elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
-            entity_registry.async_remove(entry.entity_id)
-
-    items_added(initial_clients)
+    items_added(initial)
 
 
 @callback
@@ -98,8 +73,6 @@ class OmadaDeviceTracker(ScannerEntity):
         "model",
         "modelVersion",
         "clientCount",
-        "wireUpLink",
-        "wirelessUpLink",
     ]
 
     def __init__(self, controller: OmadaController, mac):
@@ -118,7 +91,7 @@ class OmadaDeviceTracker(ScannerEntity):
     @property
     def name(self) -> str:
         site = self._controller.api.site
-        name = self._controller.api.known_clients[self._mac].name
+        name = self._controller.api.devices[self._mac].name
         return f"{site} Device {name}"
 
     @property
@@ -153,7 +126,7 @@ class OmadaDeviceTracker(ScannerEntity):
 
     async def options_updated(self):
         pass
-    
+
     async def async_added_to_hass(self):
         self.async_on_remove(
             async_dispatcher_connect(
