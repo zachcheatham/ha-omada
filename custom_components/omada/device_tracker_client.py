@@ -1,4 +1,4 @@
-from custom_components.omada.api.devices import Device
+from custom_components.omada.api.clients import Client
 from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from custom_components.omada import LOGGER
 from homeassistant.components.device_tracker.const import SOURCE_TYPE_ROUTER
@@ -26,8 +26,26 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_SITE, default="Default"): cv.string,
     vol.Required(CONF_USERNAME): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
+    vol.Optional(CONF_SSID_FILTER, default=[]): vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean
 })
+
+CONNECTED_ATTRIBUTES = (
+    "ip",
+    "wireless",
+    "ssid",
+    "ap_mac",
+    "signal_level",
+    "rssi",
+    "uptime",
+    "guest"
+)
+
+DISCONNECTED_ATTRIBUTES = (
+    "wireless",
+    "guest",
+    "last_seen"
+)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
 
@@ -49,8 +67,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         return clients
 
     @callback
-    def items_added(clients: set = controller.api.devices):
-        add_entities(controller, async_add_entities, clients)
+    def items_added(clients: set = get_clients_filtered()):
+        add_client_entities(controller, async_add_entities, clients)
 
     config_entry.async_on_unload(
         async_dispatcher_connect(hass, controller.signal_update, items_added)
@@ -77,30 +95,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 
 @callback
-def add_entities(controller: Controller, async_add_entities, devices):
+def add_client_entities(controller: Controller, async_add_entities, clients):
     trackers = []
 
-    for mac in devices:
+    for mac in clients:
         if mac in controller.entities[DOMAIN]:
             continue
 
-        trackers.append(OmadaDeviceTracker(controller, mac))
+        trackers.append(OmadaClientTracker(controller, mac))
 
     if trackers:
         async_add_entities(trackers)
 
-class OmadaDeviceTracker(ScannerEntity):
+class OmadaClientTracker(ScannerEntity):
 
     DOMAIN = DOMAIN
-
-    ATTRIBUTES = [
-        "type",
-        "model",
-        "modelVersion",
-        "clientCount",
-        "wireUpLink",
-        "wirelessUpLink",
-    ]
 
     def __init__(self, controller: OmadaController, mac):
         self._controller = controller
@@ -117,21 +126,27 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @property
     def name(self) -> str:
-        site = self._controller.api.site
-        name = self._controller.api.known_clients[self._mac].name
-        return f"{site} Device {name}"
+        return self._controller.api.known_clients[self._mac].name
 
     @property
     def is_connected(self) -> bool:
-        return self._mac in self._controller.api.devices
+        return self._mac in self._controller.api.clients
 
     @property
     def extra_state_attributes(self):
 
-        device=self._controller.api.devices[self._mac]
-        return {
-            k: getattr(device, k) for k in self.ATTRIBUTES
-        }
+        if self.is_connected:
+            client=self._controller.api.clients[self._mac]
+            return {
+                k: getattr(client, k) for k in CONNECTED_ATTRIBUTES
+            }
+        elif self._mac in self._controller.api.known_clients:
+            client=self._controller.api.known_clients[self._mac]
+            return {
+                k: getattr(client, k) for k in DISCONNECTED_ATTRIBUTES
+            }
+        else:
+            None
 
     @property
     def source_type(self) -> str:
@@ -149,11 +164,21 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @callback
     async def async_update(self):
-        self.async_write_ha_state()
+        if (self._controller.option_ssid_filter
+        and self.is_connected
+        and self._controller.api.clients[self._mac].ssid not in self._controller.option_ssid_filter):
+            
+            await self.remove()
+        else:
+            self.async_write_ha_state()
 
     async def options_updated(self):
-        pass
-    
+        if (self._controller.option_ssid_filter
+        and self.is_connected
+        and self._controller.api.clients[self._mac].ssid not in self._controller.option_ssid_filter):
+
+            await self.remove()
+
     async def async_added_to_hass(self):
         self.async_on_remove(
             async_dispatcher_connect(
