@@ -71,8 +71,8 @@ class OmadaDeviceTracker(ScannerEntity):
     ATTRIBUTES = [
         "type",
         "model",
-        "modelVersion",
-        "clientCount",
+        "model_version",
+        "client_count",
     ]
 
     def __init__(self, controller: OmadaController, mac):
