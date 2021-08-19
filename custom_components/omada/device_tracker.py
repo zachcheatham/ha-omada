@@ -1,5 +1,4 @@
-from custom_components.omada.api.devices import Device
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry
+from homeassistant.helpers.device_registry import format_mac
 from custom_components.omada import LOGGER
 from homeassistant.components.device_tracker.const import SOURCE_TYPE_ROUTER
 from homeassistant.core import callback
@@ -86,7 +85,22 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @property
     def unique_id(self) -> str:
-        return self._mac
+        return format_mac(self._mac)
+
+    @property
+    def device_info(self):
+        device = self._controller.api.devices[self._mac]
+        return {
+            "identifiers": {
+                # Serial numbers are unique identifiers within a specific domain
+                (self.DOMAIN, self.unique_id)
+            },
+            "name": self.name,
+            "manufacturer": "TP-Link",
+            "type": getattr(device, "type"),
+            "model": getattr(device, "model"),
+            "model_version": getattr(device, "model_version"),
+        }
 
     @property
     def name(self) -> str:
