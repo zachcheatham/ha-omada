@@ -120,6 +120,18 @@ class OmadaDeviceTracker(ScannerEntity):
         return self._controller.api.devices[self._mac].status_category == 1
 
     @property
+    def ip_address(self) -> str:
+        return self._controller.api.devices[self._mac].ip
+
+    @property
+    def mac_address(self) -> str:
+        return format_mac(self._mac)
+
+    @property
+    def hostname(self) -> str:
+        return self._controller.api.devices[self._mac].name
+
+    @property
     def extra_state_attributes(self):
 
         device=self._controller.api.devices[self._mac]
