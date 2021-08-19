@@ -96,17 +96,23 @@ class OmadaDeviceTracker(ScannerEntity):
                 (self.DOMAIN, self.unique_id)
             },
             "name": self.name,
-            "manufacturer": "TP-Link",
+            "default_manufacturer": "TP-Link",
             "type": getattr(device, "type"),
-            "model": getattr(device, "model"),
-            "model_version": getattr(device, "model_version"),
+            "model": f"{getattr(device, 'model')} ",
+            "sw_version": getattr(device, "model_version"),
         }
 
     @property
     def name(self) -> str:
         site = self._controller.api.site
+        # Replace default site name if not set
+        if site == "Default": site = "Omada"
+        
+        type = self._controller.api.devices[self._mac].type
         name = self._controller.api.devices[self._mac].name
-        return f"{site} Device {name}"
+
+        if type == "gateway": return f"{site} {name}"
+        return f"{site} {type} {name}"
 
     @property
     def is_connected(self) -> bool:
