@@ -1,6 +1,6 @@
 from .api import (APIItems, APIItem)
 
-END_POINT = "/topology"
+END_POINT = "/devices"
 
 class Devices(APIItems):
 
@@ -8,6 +8,10 @@ class Devices(APIItems):
         super().__init__(request, END_POINT, "mac", Device)
 
 class Device(APIItem):
+
+    @property
+    def type(self):
+        return self._raw.get("type", "")
 
     @property
     def mac(self):
@@ -18,57 +22,42 @@ class Device(APIItem):
         return self._raw.get("name", "")
 
     @property
-    def type(self):
-        return self._raw.get("type", "")
-
-    @property
     def model(self):
-        return self._raw.get("model", "")
+        return self._raw.get("compoundModel", "")
 
     @property
-    def model_version(self):
-        return self._raw.get("modelVersion", "")
+    def firmware(self):
+        return self._raw.get("firmwareVersion", "")
 
     @property
-    def client_count(self):
-        return self._raw.get("clientCount", "")
+    def firmware_upgrade(self):
+        return self._raw.get("needUpgrade", "")
 
     @property
-    def successors(self):
-        return self._raw.get("successors", "")
-
-    # AP specific
-    @property
-    def channel_2g(self):
-        return self._raw.get("channel2g", "")
+    def ip(self):
+        return self._raw.get("ip", "")
 
     @property
-    def channel_5g(self):
-        return self._raw.get("channel5g", "")
+    def upload(self):
+        return self._raw.get("upload", "")
 
     @property
-    def rd_mode_2g(self):
-        return self._raw.get("rdMode2g", "")
+    def download(self):
+        return self._raw.get("download", "")
+
 
     @property
-    def rd_mode_5g(self):
-        return self._raw.get("rdMode5g", "")
+    def tx_rate(self):
+        return self._raw.get("txRate", "")
 
     @property
-    def wired_uplink(self):
-        # wireUpLink
-        #   duplex
-        #   linkSpeed
-        return self._raw.get("wireUpLink", "")
+    def rx_rate(self):
+        return self._raw.get("rxRate", "")
 
     @property
-    def wireless_uplink(self):
-        # wirelessUpLink
-        #   rssi
-        #   rssiPercent
-        #   rxRate
-        #   txRate
-        return self._raw.get("wirelessUpLink", "")
+    def mesh(self):
+        return self._raw.get("wirelessLinked", "")
+
 
     def __repr__(self):
         name = self.name or self.mac

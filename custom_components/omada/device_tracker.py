@@ -70,8 +70,9 @@ class OmadaDeviceTracker(ScannerEntity):
     ATTRIBUTES = [
         "type",
         "model",
-        "model_version",
-        "client_count",
+        "firmware",
+        "firmware_upgrade",
+        "mesh",
     ]
 
     def __init__(self, controller: OmadaController, mac):
@@ -99,7 +100,7 @@ class OmadaDeviceTracker(ScannerEntity):
             "default_manufacturer": "TP-Link",
             "type": getattr(device, "type"),
             "model": f"{getattr(device, 'model')} ",
-            "sw_version": getattr(device, "model_version"),
+            "sw_version": getattr(device, "firmware"),
         }
 
     @property
