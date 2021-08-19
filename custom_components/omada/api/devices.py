@@ -34,9 +34,25 @@ class Device(APIItem):
         return self._raw.get("needUpgrade", "")
 
     @property
+    def status(self):
+        return self._raw.get("status", "")
+
+    @property
+    def status_category(self):
+        return self._raw.get("statusCategory", "")
+
+    # Connectivity
+    @property
+    def mesh(self):
+        return self._raw.get("wirelessLinked", "")
+    @property
+    def uplink(self):
+        return self._raw.get("uplink", "")
+    @property
     def ip(self):
         return self._raw.get("ip", "")
 
+    # Throughput
     @property
     def upload(self):
         return self._raw.get("upload", "")
@@ -44,7 +60,6 @@ class Device(APIItem):
     @property
     def download(self):
         return self._raw.get("download", "")
-
 
     @property
     def tx_rate(self):
@@ -54,12 +69,8 @@ class Device(APIItem):
     def rx_rate(self):
         return self._raw.get("rxRate", "")
 
-    @property
-    def mesh(self):
-        return self._raw.get("wirelessLinked", "")
-
 
     def __repr__(self):
         name = self.name or self.mac
         type = self.type or '!'
-        return f"<Device {type}|{name}: {self.mac} {self._raw}>"
+        return f"<Device:{type} {name}:{self.mac} {self._raw}>"

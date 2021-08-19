@@ -72,6 +72,8 @@ class OmadaDeviceTracker(ScannerEntity):
         "model",
         "firmware",
         "firmware_upgrade",
+        "status",
+        "status_category",
         "mesh",
     ]
 
@@ -101,23 +103,21 @@ class OmadaDeviceTracker(ScannerEntity):
             "type": getattr(device, "type"),
             "model": f"{getattr(device, 'model')} ",
             "sw_version": getattr(device, "firmware"),
+            "suggested_area": "Network",
         }
 
     @property
     def name(self) -> str:
-        site = self._controller.api.site
         # Replace default site name if not set
+        site = self._controller.api.site
         if site == "Default": site = "Omada"
-        
-        type = self._controller.api.devices[self._mac].type
         name = self._controller.api.devices[self._mac].name
 
-        if type == "gateway": return f"{site} {name}"
-        return f"{site} {type} {name}"
+        return f"{site.title()} {name.title()}"
 
     @property
     def is_connected(self) -> bool:
-        return self._mac in self._controller.api.devices
+        return self._controller.api.devices[self._mac].status_category == "1"
 
     @property
     def extra_state_attributes(self):
