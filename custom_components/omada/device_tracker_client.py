@@ -1,3 +1,4 @@
+from custom_components.omada.api.clients import Client
 from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from custom_components.omada import LOGGER
 from homeassistant.components.device_tracker.const import SOURCE_TYPE_ROUTER
