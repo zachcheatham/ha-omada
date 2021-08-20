@@ -1,5 +1,5 @@
-
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry, format_mac
+from homeassistant.helpers.entity_registry import async_entries_for_config_entry
+from homeassistant.helpers.device_registry import format_mac
 from custom_components.omada import LOGGER
 from homeassistant.components.device_tracker.const import SOURCE_TYPE_ROUTER
 from homeassistant.core import callback
