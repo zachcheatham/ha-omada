@@ -1,9 +1,11 @@
 from custom_components.omada.api.clients import Clients
+from custom_components.omada.api.devices import Devices
 import logging
 
 from aiohttp import client_exceptions
 
 from .clients import Clients
+from .devices import Devices
 from .known_clients import KnownClients
 from .errors import (raise_response_error, OmadaApiException, LoginRequired, RequestError)
 
@@ -26,6 +28,7 @@ class Controller:
         self._ssl_context = ssl_context
         self._token = None
         self.clients = Clients(self._site_request)
+        self.devices = Devices(self._site_request)
         self.known_clients = KnownClients(self._site_request)
         self.ssids = set()
 
@@ -95,7 +98,6 @@ class Controller:
         except client_exceptions.ClientError as err:
             raise RequestError(f"Error requesting data from {url}: {err}") from None
 
-    
 
     def _raiseOnResponseError(self, response):
         if not isinstance(response, dict):

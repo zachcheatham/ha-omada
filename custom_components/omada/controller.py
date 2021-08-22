@@ -106,6 +106,7 @@ class OmadaController:
         
         for _ in range(2):
             try:
+                await self.api.devices.update()
                 await self.api.clients.update()
                 await self.api.known_clients.update()
                 break
