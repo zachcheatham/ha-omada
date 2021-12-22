@@ -10,9 +10,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
-from .api.errors import (LoginFailed, OmadaApiException, RequestError, LoginRequired)
-
-from .errors import (AuthenticationRequired, CannotConnect)
+from .api.errors import (LoginFailed, OmadaApiException, OperationForbidden, RequestError, LoginRequired, UnknownSite)
 
 from .const import (
     CONF_SITE,
@@ -163,12 +161,16 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
             await controller.update_status()
 
         with async_timeout.timeout(10):
-            await controller.update_ssids()
+            try:
+                await controller.update_ssids()
+            except OperationForbidden as err:
+                LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is indicative of an invalid site id.")
+                raise UnknownSite(f"Possible invalid site '{site}'.")
 
         return controller
     except LoginFailed as err:
         LOGGER.warning("Connected to Omada at %s but unauthorized: %s", url, err)
-        raise AuthenticationRequired
-    except RequestError as err:
+        raise err
+    except OmadaApiException as err:
         LOGGER.warning("Unable to connect to Omada at %s: %s", url, err)
-        raise CannotConnect
+        raise err

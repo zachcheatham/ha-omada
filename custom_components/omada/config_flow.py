@@ -11,9 +11,10 @@ from homeassistant.const import (
 
 import homeassistant.helpers.config_validation as cv
 
+from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, UnknownSite
+
 from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN, CONF_SITE, CONF_SSID_FILTER)
 from .controller import OmadaController, get_api_controller
-from .errors import (AuthenticationRequired, CannotConnect)
 
 class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
@@ -70,11 +71,18 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
                 return self.async_create_entry(title=f"{controller.name}: {controller.site}", data=user_input)
 
-            except AuthenticationRequired:
+            except (LoginFailed, LoginRequired):
                 errors["base"] = "faulty_credentials"
-
-            except CannotConnect:
+            except InvalidURLError:
+                errors["base"] = "invalid_url"
+            except SSLError:
+                errors["base"] = "ssl_error"
+            except UnknownSite:
+                errors["base"] = "unknown_site"
+            except RequestError:
                 errors["base"] = "service_unavailable"
+            except OmadaApiException:
+                errors["base"] = "api_error"
 
             return self._show_setup_form(user_input, errors)
 

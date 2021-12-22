@@ -13,7 +13,11 @@
         },
         "error": {
             "service_unavailable": "Unable to connect to service.",
-            "faulty_credentials": "Invalid username or password."
+            "ssl_error": "Unable to verify SSL certificate.",
+            "invalid_url": "Invalid URL. Please format as http(s)://(host)",
+            "faulty_credentials": "Invalid username or password.",
+            "api_error": "An API error occurred. Please see logs for more information.",
+            "unknown_site": "Unable to get site information. Please ensure the site id is correct."
         }
     },
     "options": {

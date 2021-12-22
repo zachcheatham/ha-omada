@@ -7,7 +7,7 @@ from aiohttp import client_exceptions
 from .clients import Clients
 from .devices import Devices
 from .known_clients import KnownClients
-from .errors import (raise_response_error, OmadaApiException, LoginRequired, RequestError)
+from .errors import (HttpErrorCode, InvalidURLError, SSLError, raise_response_error, OmadaApiException, RequestError)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,27 +82,32 @@ class Controller:
                 if res.status != 200:
                     if res.content_type == "application/json":
                         response = await res.json()
-                        self._raiseOnResponseError(response)
-                        
-                    raise OmadaApiException(f"Call to {url} received status code {res.status}.")
+                        self._raiseOnResponseError(url, response)
+                    
+                    LOGGER.warning(f"Error connecting to {url}: API returned HTTP {res.status}.")
+                    raise HttpErrorCode(url=url, code=res.status)
 
                 if res.content_type == "application/json":
                     response = await res.json()
-                    self._raiseOnResponseError(response)
+                    self._raiseOnResponseError(url, response)
                     if "result" in response:
                         return response["result"]
                     return response
             
                 return res
 
+        except client_exceptions.ClientConnectorCertificateError as err:
+            raise SSLError(f"Error connecting to {url}: {err}")
+        except client_exceptions.InvalidURL as err:
+            raise InvalidURLError
         except client_exceptions.ClientError as err:
-            raise RequestError(f"Error requesting data from {url}: {err}") from None
+            raise RequestError(f"Error connecting to {url}: {err}") from None
 
 
-    def _raiseOnResponseError(self, response):
+    def _raiseOnResponseError(self, url, response):
         if not isinstance(response, dict):
             return
 
         if "errorCode" in response and response["errorCode"] != 0:
-            raise_response_error(response)
+            raise_response_error(url, response)
 
