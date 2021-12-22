@@ -17,7 +17,8 @@
             "invalid_url": "Invalid URL. Please format as http(s)://(host)",
             "faulty_credentials": "Invalid username or password.",
             "api_error": "An API error occurred. Please see logs for more information.",
-            "unknown_site": "Unable to get site information. Please ensure the site id is correct."
+            "unknown_site": "Unable to get site information. Please ensure the site id is correct.",
+            "unsupported_version": "Unsupported Omada controller version."
         }
     },
     "options": {

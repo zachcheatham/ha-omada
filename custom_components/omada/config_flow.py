@@ -11,7 +11,7 @@ from homeassistant.const import (
 
 import homeassistant.helpers.config_validation as cv
 
-from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, UnknownSite
+from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, UnknownSite, UnsupportedVersion
 
 from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN, CONF_SITE, CONF_SSID_FILTER)
 from .controller import OmadaController, get_api_controller
@@ -79,6 +79,8 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
                 errors["base"] = "ssl_error"
             except UnknownSite:
                 errors["base"] = "unknown_site"
+            except UnsupportedVersion:
+                errors["base"] = "unsupported_version"
             except RequestError:
                 errors["base"] = "service_unavailable"
             except OmadaApiException:

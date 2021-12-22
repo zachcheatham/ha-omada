@@ -7,7 +7,7 @@ from aiohttp import client_exceptions
 from .clients import Clients
 from .devices import Devices
 from .known_clients import KnownClients
-from .errors import (HttpErrorCode, InvalidURLError, SSLError, raise_response_error, OmadaApiException, RequestError)
+from .errors import (HttpErrorCode, InvalidURLError, SSLError, raise_response_error, UnsupportedVersion, RequestError)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,11 +48,21 @@ class Controller:
         self.name = response["name"]
         self.version = response["controllerVersion"]
 
+        if self.version < "4.4.8":
+            raise UnsupportedVersion(f"Please upgrade your Omada controller. Omada version {self.version} will not work with this version of the integration!")
+
     async def update_ssids(self):
-        response = await self._site_request("get", "/setting/ssids")
+
+        response = await self._site_request("get", "/setting/wlans")
+
         self.ssids.clear()
-        for ssid in response["ssids"][0]["ssidList"]:
-            self.ssids.add(ssid["ssidName"])
+
+        for wlan in response["data"]:
+            wlan_id = wlan["wlanId"]
+            ssid_response = await self._site_request("get", f"/setting/wlans/{wlan_id}/ssids")
+
+            for ssid in ssid_response["data"]:
+                self.ssids.add(ssid["name"])
 
     async def _site_request(self, method, end_point, params=[], json=None):
         url = f"{self.url}{API_PATH}/sites/{self.site}{end_point}"

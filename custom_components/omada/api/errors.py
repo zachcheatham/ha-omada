@@ -21,6 +21,8 @@ class OperationForbidden(RequestError):
     pass
 class UnknownSite(RequestError):
     pass
+class UnsupportedVersion(RequestError):
+    pass
 
 API_ERRORS = {
     -30109: LoginFailed,
