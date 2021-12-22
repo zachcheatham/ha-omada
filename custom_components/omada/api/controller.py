@@ -48,21 +48,27 @@ class Controller:
         self.name = response["name"]
         self.version = response["controllerVersion"]
 
-        if self.version < "4.4.8":
-            raise UnsupportedVersion(f"Please upgrade your Omada controller. Omada version {self.version} will not work with this version of the integration!")
-
     async def update_ssids(self):
 
-        response = await self._site_request("get", "/setting/wlans")
+        if self.version < "4.4.8":
+            response = await self._site_request("get", "/setting/ssids")
 
-        self.ssids.clear()
+            self.ssids.clear()
 
-        for wlan in response["data"]:
-            wlan_id = wlan["wlanId"]
-            ssid_response = await self._site_request("get", f"/setting/wlans/{wlan_id}/ssids")
+            for ssid in response["ssids"][0]["ssidList"]:
+                self.ssids.add(ssid["ssidName"])
+            
+        else:
+            response = await self._site_request("get", "/setting/wlans")
 
-            for ssid in ssid_response["data"]:
-                self.ssids.add(ssid["name"])
+            self.ssids.clear()
+
+            for wlan in response["data"]:
+                wlan_id = wlan["wlanId"]
+                ssid_response = await self._site_request("get", f"/setting/wlans/{wlan_id}/ssids")
+
+                for ssid in ssid_response["data"]:
+                    self.ssids.add(ssid["name"])
 
     async def _site_request(self, method, end_point, params=[], json=None):
         url = f"{self.url}{API_PATH}/sites/{self.site}{end_point}"
