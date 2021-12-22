@@ -28,8 +28,6 @@ from homeassistant.const import (
     CONF_VERIFY_SSL
 )
 from homeassistant.helpers import aiohttp_client
-from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 
 SCAN_INTERVAL = timedelta(seconds=30) # TODO Remove after websockets
 
@@ -110,9 +108,10 @@ class OmadaController:
                 break
             except LoginRequired:
                 LOGGER.warning("Token possibly expired to Omada API. Renewing...")
-                self.api.login()
+                await self.api.login()
             except RequestError as err:
-                LOGGER.error("Unable to connect to Omada: %s", err)
+                LOGGER.error("Unable to connect to Omada: %s. Renewing login...", err)
+                await self.api.login()
             except OmadaApiException as err:
                 LOGGER.error("Omada API error: %s", err)
 
