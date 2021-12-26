@@ -155,7 +155,7 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
     try:
         with async_timeout.timeout(10):
             await controller.login()
-        
+
         with async_timeout.timeout(10):
             await controller.update_status()
 
@@ -163,8 +163,11 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
             try:
                 await controller.update_ssids()
             except OperationForbidden as err:
-                LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is indicative of an invalid site id.")
-                raise UnknownSite(f"Possible invalid site '{site}'.")
+                if controller.version < "5.0.0":
+                    LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is indicative of an invalid site id.")
+                    raise UnknownSite(f"Possible invalid site '{site}'.")
+                else:
+                    raise err
 
         return controller
     except LoginFailed as err:
