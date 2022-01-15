@@ -82,14 +82,15 @@ class Controller:
 
         response = await self._controller_request(
             "get",
-            "/sites",
+            "/users/current",
             params=[("currentPage", "1"), ("currentPageSize", "10000")],
             private=True,
         )
 
-        for site in response["data"]:
+        LOGGER.debug("current user %s", response)
+        for site in response["privilege"]["sites"]:
             if site["name"] == self.site:
-                self._site_id = site["id"]
+                self._site_id = site["key"]
                 break
 
         if not self._site_id:
