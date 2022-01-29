@@ -6,6 +6,7 @@ from aiohttp import CookieJar
 import async_timeout
 import ssl
 from homeassistant.core import CALLBACK_TYPE, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
@@ -83,8 +84,14 @@ class OmadaController:
         return f"{OMADA_DOMAIN}-options-{self._config_entry.entry_id}"
 
     async def async_setup(self):
-            
-        self.api = await get_api_controller(self.hass, self.url, self.username, self.password, self.site, self.verify_ssl)
+        
+        try:
+            self.api = await get_api_controller(self.hass, self.url, self.username, self.password, self.site, self.verify_ssl)
+        except LoginFailed as err:
+            raise ConfigEntryAuthFailed from err
+        except OmadaApiException as err:
+            raise ConfigEntryNotReady from err
+        
         await self.update_devices()
 
         self.async_on_close(
