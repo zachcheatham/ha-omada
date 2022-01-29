@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+- Fixed a permissions error by using a different endpoint for determing the site id (@sogood007)
+- Allow Home Assistant to properly retry the integration's setup if Omada is unavailable when Home Assistant starts.
+
 ## 0.2.0
 
 - Add support for the API changes introduced in version 5.0.0 of the Omada Controller. This has not been fully tested as I do not have a production v5 controller to test on. It is fully working on my device-less test install of 5.0.15

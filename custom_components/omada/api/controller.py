@@ -87,7 +87,6 @@ class Controller:
             private=True,
         )
 
-        LOGGER.debug("current user %s", response)
         for site in response["privilege"]["sites"]:
             if site["name"] == self.site:
                 self._site_id = site["key"]
