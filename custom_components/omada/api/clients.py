@@ -2,12 +2,14 @@ from .api import (APIItems, APIItem)
 
 END_POINT = "/clients"
 
-class Clients(APIItems):
 
+class Clients(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Client, data_key="data")
 
+
 class Client(APIItem):
+    """Defines all the properties for a Client"""
 
     @property
     def mac(self):

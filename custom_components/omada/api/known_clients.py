@@ -2,13 +2,13 @@ from .api import (APIItems, APIItem)
 
 END_POINT = "/insight/clients"
 
-class KnownClients(APIItems):
 
+class KnownClients(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", KnownClient, data_key="data")
 
-class KnownClient(APIItem):
 
+class KnownClient(APIItem):
     @property
     def mac(self):
         return self._raw.get("mac", "")

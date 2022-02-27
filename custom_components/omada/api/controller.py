@@ -1,36 +1,27 @@
-from platform import version
-from aiohttp.client import ClientSession
-from custom_components.omada.api.clients import Clients
-from custom_components.omada.api.devices import Devices
 import logging
 
 from aiohttp import client_exceptions
+from aiohttp.client import ClientSession
 
 from .clients import Clients
 from .devices import Devices
+from .errors import (HttpErrorCode, InvalidURLError, SSLError, UnknownSite, raise_response_error, RequestError)
 from .known_clients import KnownClients
-from .errors import (
-    HttpErrorCode,
-    InvalidURLError,
-    SSLError,
-    UnknownSite,
-    raise_response_error,
-    UnsupportedVersion,
-    RequestError,
-)
 
 LOGGER = logging.getLogger(__name__)
 
 API_PATH = "/api/v2"
+
+
 class Controller:
     def __init__(
-        self,
-        url: str,
-        username: str,
-        password: str,
-        websession: ClientSession,
-        site: str = "Default",
-        ssl_context=None,
+            self,
+            url: str,
+            username: str,
+            password: str,
+            websession: ClientSession,
+            site: str = "Default",
+            ssl_context=None,
     ):
 
         self.url = url
@@ -64,9 +55,8 @@ class Controller:
 
         LOGGER.info(f"Login successful. Role type {self.role_type}.")
 
-        if (
-            self.version >= "5.0.0"
-        ):  # Aquire site id for site name as required for versions 5+
+        # Acquire site id for site name as required for versions 5+
+        if self.version >= "5.0.0":
             await self._update_site_id()
 
     async def _update_api_info(self):
@@ -120,7 +110,7 @@ class Controller:
             self.ssids.clear()
 
             # The key of the id changed in v5
-            wland_id_key=None
+            wland_id_key = None
             if self.version >= "5.0.0":
                 wland_id_key = "id"
             else:
@@ -147,7 +137,7 @@ class Controller:
         return await self._controller_request(method, endpoint, params=params, json=json, private=True)
 
     async def _controller_request(
-        self, method, end_point, params=None, json=None, private=False
+            self, method, end_point, params=None, json=None, private=False
     ):
         """Perform a request specific to the controlller"""
 
@@ -188,12 +178,12 @@ class Controller:
 
         try:
             async with self._session.request(
-                method,
-                url,
-                params=params,
-                headers=headers,
-                json=json,
-                ssl=self._ssl_context,
+                    method,
+                    url,
+                    params=params,
+                    headers=headers,
+                    json=json,
+                    ssl=self._ssl_context,
             ) as res:
                 LOGGER.debug("%s %s %s", res.status, res.content_type, res)
 

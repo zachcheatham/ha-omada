@@ -1,35 +1,35 @@
 {
-    "config": {
-        "step": {
-            "user": {
-                "data": {
-                    "url": "URL",
-                    "site": "Site",
-                    "username": "Username",
-                    "password": "Password",
-                    "verify_ssl": "Verify SSL"
-                }
-            }
-        },
-        "error": {
-            "service_unavailable": "Unable to connect to service.",
-            "ssl_error": "Unable to verify SSL certificate.",
-            "invalid_url": "Invalid URL. Please format as http(s)://(host)",
-            "faulty_credentials": "Invalid username or password.",
-            "api_error": "An API error occurred. Please see logs for more information.",
-            "unknown_site": "Unable to get site information. Please ensure the site id is correct.",
-            "unsupported_version": "Unsupported Omada controller version."
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "url": "URL",
+          "site": "Site",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL"
         }
+      }
     },
-    "options": {
-        "step": {
-            "device_tracker": {
-                "data": {
-                    "ssid_filter": "Select SSIDs to track wireless clients on"
-                },
-                "description": "Configure device tracking",
-                "title": "Omada options"
-            }
-        }
+    "error": {
+      "service_unavailable": "Unable to connect to service.",
+      "ssl_error": "Unable to verify SSL certificate.",
+      "invalid_url": "Invalid URL. Please format as http(s)://(host)",
+      "faulty_credentials": "Invalid username or password.",
+      "api_error": "An API error occurred. Please see logs for more information.",
+      "unknown_site": "Unable to get site information. Please ensure the site id is correct.",
+      "unsupported_version": "Unsupported Omada controller version."
     }
+  },
+  "options": {
+    "step": {
+      "device_tracker": {
+        "data": {
+          "ssid_filter": "Select SSIDs to track wireless clients on"
+        },
+        "description": "Configure device tracking",
+        "title": "Omada options"
+      }
+    }
+  }
 }

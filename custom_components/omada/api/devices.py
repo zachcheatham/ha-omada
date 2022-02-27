@@ -2,10 +2,11 @@ from .api import (APIItems, APIItem)
 
 END_POINT = "/devices"
 
-class Devices(APIItems):
 
+class Devices(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Device)
+
 
 class Device(APIItem):
 
