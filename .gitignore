@@ -1,1 +1,9 @@
+# Folders
 __pycache__/
+venv/
+.venv/
+
+# Files
+pythonenv*
+.python-version
+.coverage
