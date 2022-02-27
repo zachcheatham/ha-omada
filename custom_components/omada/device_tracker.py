@@ -277,11 +277,14 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @property
     def extra_state_attributes(self):
+        device = self._controller.api.devices[self._mac]
 
-        device=self._controller.api.devices[self._mac]
-        return {
-            k: getattr(device, k) for k in self.ATTRIBUTES
-        }
+        attributes = {}
+        for k in self.ATTRIBUTES:
+            if hasattr(device, k) and getattr(device, k):
+                attributes[k] = getattr(device, k)
+
+        return attributes
 
     @property
     def source_type(self) -> str:
