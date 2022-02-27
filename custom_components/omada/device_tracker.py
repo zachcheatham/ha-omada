@@ -245,6 +245,7 @@ class OmadaDeviceTracker(ScannerEntity):
             # Serial numbers are unique identifiers within a specific domain
             "identifiers": {(self.DOMAIN, self.unique_id)},
             "name": self.name,
+            "site": self.site,
             "default_manufacturer": "TP-Link",
             "type": getattr(device, "type"),
             "model": f"{getattr(device, 'model')} ",
@@ -254,12 +255,9 @@ class OmadaDeviceTracker(ScannerEntity):
 
     @property
     def name(self) -> str:
-        # Replace default site name if not set
-        site = self._controller.api.site
-        if site == "Default": site = "Omada"
         name = self._controller.api.devices[self._mac].name
 
-        return f"{site.title()} {name.title()}"
+        return f"[{self.site.title()}] {name.title()}"
 
     @property
     def is_connected(self) -> bool:
@@ -292,6 +290,16 @@ class OmadaDeviceTracker(ScannerEntity):
     @property
     def should_poll(self) -> bool:
         return False
+
+    @property
+    def site(self) -> str:
+        site = self._controller.api.site
+
+        # Replace default site name if not set
+        if site == "Default":
+            site = "Omada"
+
+        return site
 
     async def remove(self):
         entity_registry = await self.hass.helpers.entity_registry.async_get_registry()
