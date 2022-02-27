@@ -222,6 +222,15 @@ class OmadaDeviceTracker(ScannerEntity):
         "firmware_upgrade",
         "status",
         "status_category",
+        "clients",
+        "users",
+        "guests",
+        "cpu",
+        "memory",
+        "download",
+        "upload",
+        "tx_rate",
+        "rx_rate",
         "mesh",
     ]
 
