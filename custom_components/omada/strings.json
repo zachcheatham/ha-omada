@@ -1,32 +1,32 @@
 {
-    "config": {
-        "step": {
-            "user": {
-                "title": "TP-Link Omada Controller",
-                "description": "Set required parameters to connect to your Omada Controller.",
-                "data": {
-                    "url": "[%key:common::config_flow::data::url%]",
-                    "site": "[%key:common::config_flow::data::site%]",
-                    "username": "[%key:common::config_flow::data::username%]",
-                    "password": "[%key:common::config_flow::data::password%]",
-                    "verify_ssl": "[%key:common::config_flow::data::verify_ssl%]"
-                }
-            }
-        },
-        "error": {
-            "service_unavailable": "[%key:common::config_flow::error::service_unavailable%]",
-            "faulty_credentials": "[%key:common::config_flow::error::faulty_credentials%]"
+  "config": {
+    "step": {
+      "user": {
+        "title": "TP-Link Omada Controller",
+        "description": "Set required parameters to connect to your Omada Controller.",
+        "data": {
+          "url": "[%key:common::config_flow::data::url%]",
+          "site": "[%key:common::config_flow::data::site%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]",
+          "verify_ssl": "[%key:common::config_flow::data::verify_ssl%]"
         }
+      }
     },
-    "options": {
-        "step": {
-            "device_tracker": {
-                "data": {
-                    "ssid_filter": "Select SSIDs to track wireless clients on"
-                },
-                "description": "Configure device tracking",
-                "title": "Omada Options"
-            }
-        }
+    "error": {
+      "service_unavailable": "[%key:common::config_flow::error::service_unavailable%]",
+      "faulty_credentials": "[%key:common::config_flow::error::faulty_credentials%]"
     }
+  },
+  "options": {
+    "step": {
+      "device_tracker": {
+        "data": {
+          "ssid_filter": "Select SSIDs to track wireless clients on"
+        },
+        "description": "Configure device tracking",
+        "title": "Omada Options"
+      }
+    }
+  }
 }

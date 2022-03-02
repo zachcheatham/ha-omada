@@ -1,23 +1,16 @@
-from homeassistant.components.device_tracker.const import DOMAIN
-from homeassistant.helpers.config_validation import multi_select
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-
 from homeassistant import config_entries
+from homeassistant.const import (CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_VERIFY_SSL)
 from homeassistant.core import callback
 
-from homeassistant.const import (
-    CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_VERIFY_SSL
-)
-
-import homeassistant.helpers.config_validation as cv
-
-from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, UnknownSite, UnsupportedVersion
-
+from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, \
+    UnknownSite, UnsupportedVersion
 from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN, CONF_SITE, CONF_SSID_FILTER)
 from .controller import OmadaController, get_api_controller
 
-class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
+class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
     VERSION = 1
 
     @staticmethod
@@ -46,7 +39,7 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
             ),
             errors=errors or {}
         )
-    
+
     async def async_step_user(self, user_input=None):
         errors = {}
 
@@ -90,6 +83,7 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
         else:
             return self._show_setup_form(user_input, errors)
+
 
 class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
 

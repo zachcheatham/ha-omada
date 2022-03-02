@@ -1,41 +1,27 @@
-
-from datetime import timedelta
 import logging
-
-from aiohttp import CookieJar
-import async_timeout
 import ssl
+from datetime import timedelta
+
+import async_timeout
+from aiohttp import CookieJar
+from homeassistant.components.device_tracker import DOMAIN
+from homeassistant.const import (CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
 from .api.errors import (LoginFailed, OmadaApiException, OperationForbidden, RequestError, LoginRequired, UnknownSite)
+from .const import (CONF_SITE, CONF_SSID_FILTER, DATA_OMADA, DOMAIN as OMADA_DOMAIN)
 
-from .const import (
-    CONF_SITE,
-    CONF_SSID_FILTER,
-    DATA_OMADA,
-    DOMAIN as OMADA_DOMAIN
-)
-
-from homeassistant.components.device_tracker import DOMAIN
-
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_URL,
-    CONF_USERNAME,
-    CONF_VERIFY_SSL
-)
-from homeassistant.helpers import aiohttp_client
-
-SCAN_INTERVAL = timedelta(seconds=30) # TODO Remove after websockets
+SCAN_INTERVAL = timedelta(seconds=30)  # TODO Remove after websockets
 
 LOGGER = logging.getLogger(__name__)
 
-class OmadaController:
 
+class OmadaController:
     def __init__(self, hass, config_entry):
         self.hass = hass
         self._config_entry = config_entry
@@ -84,19 +70,18 @@ class OmadaController:
         return f"{OMADA_DOMAIN}-options-{self._config_entry.entry_id}"
 
     async def async_setup(self):
-        
         try:
-            self.api = await get_api_controller(self.hass, self.url, self.username, self.password, self.site, self.verify_ssl)
+            self.api = await get_api_controller(
+                self.hass, self.url, self.username, self.password, self.site, self.verify_ssl
+            )
         except LoginFailed as err:
             raise ConfigEntryAuthFailed from err
         except OmadaApiException as err:
             raise ConfigEntryNotReady from err
-        
+
         await self.update_devices()
 
-        self.async_on_close(
-            async_track_time_interval(self.hass, self.update_all, SCAN_INTERVAL)
-        )
+        self.async_on_close(async_track_time_interval(self.hass, self.update_all, SCAN_INTERVAL))
 
         self._config_entry.add_update_listener(self.async_config_entry_updated)
 
@@ -104,9 +89,8 @@ class OmadaController:
         await self.update_devices()
 
     async def update_devices(self):
-
         LOGGER.debug("Updating clients...")
-        
+
         for _ in range(2):
             try:
                 await self.api.devices.update()
@@ -130,7 +114,6 @@ class OmadaController:
         self._on_close.append(func)
 
     async def async_close(self):
-        
         for func in self._on_close:
             func()
 
@@ -144,8 +127,8 @@ class OmadaController:
         controller.load_config_entry_options()
         async_dispatcher_send(hass, controller.signal_options_update)
 
-async def get_api_controller(hass, url, username, password, site, verify_ssl):
 
+async def get_api_controller(hass, url, username, password, site, verify_ssl):
     ssl_context = None
 
     if verify_ssl:
@@ -171,7 +154,8 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
                 await controller.update_ssids()
             except OperationForbidden as err:
                 if controller.version < "5.0.0":
-                    LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is indicative of an invalid site id.")
+                    LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is "
+                                   "indicative of an invalid site id.")
                     raise UnknownSite(f"Possible invalid site '{site}'.")
                 else:
                     raise err

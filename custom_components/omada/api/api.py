@@ -1,12 +1,11 @@
 import logging
-import json
 
-from .errors import(OmadaApiException)
+from .errors import (OmadaApiException)
 
 LOGGER = logging.getLogger(__name__)
 
-class APIItems:
 
+class APIItems:
     def __init__(self, request, end_point, key, item_cls, data_key: str = ""):
         self._request = request
         self._end_point = end_point
@@ -16,7 +15,9 @@ class APIItems:
         self._data_key = data_key
 
     async def update(self):
-        response = await self._request("GET", self._end_point, params=[("filters.active", "true"), ("currentPage", "1"), ("currentPageSize", "1000000")])
+        response = await self._request("GET", self._end_point, params=[
+            ("filters.active", "true"), ("currentPage", "1"), ("currentPageSize", "1000000")
+        ])
 
         if self._data_key == "":
             # Response is a list
@@ -25,14 +26,14 @@ class APIItems:
             # Response is a dict, process a specific key containing a list
             self._process_raw(response[self._data_key])
         else:
-            raise OmadaApiException(f"Unable to parse {{self._end_point}}: '{self._data_key}' array not available in response.")
+            raise OmadaApiException(
+                f"Unable to parse {{self._end_point}}: '{self._data_key}' array not available in response.")
 
     def _process_raw(self, raw):
         present_items = set()
         removed_items = set()
 
         for raw_item in raw:
-            
             key = raw_item[self._key]
             present_items.add(key)
             existing = self.items.get(key)
@@ -43,7 +44,7 @@ class APIItems:
                 self.items[key] = self._item_cls(raw_item)
 
         for key in self.items:
-            if not key in present_items:
+            if key not in present_items:
                 removed_items.add(key)
 
         for key in removed_items:
@@ -58,8 +59,8 @@ class APIItems:
     def __iter__(self):
         return self.items.__iter__()
 
-class APIItem:
 
+class APIItem:
     def __init__(self, raw):
         self._raw = raw
 

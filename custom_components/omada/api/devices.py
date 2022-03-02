@@ -2,73 +2,100 @@ from .api import (APIItems, APIItem)
 
 END_POINT = "/devices"
 
-class Devices(APIItems):
 
+class Devices(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Device)
 
+
 class Device(APIItem):
+    """Defines all the properties for a Device"""
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self._raw.get("type", "")
 
     @property
-    def mac(self):
+    def mac(self) -> str:
         return self._raw.get("mac", "")
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._raw.get("name", "")
 
     @property
-    def model(self):
+    def model(self) -> str:
         return self._raw.get("compoundModel", "")
 
     @property
-    def firmware(self):
+    def firmware(self) -> str:
         return self._raw.get("firmwareVersion", "")
 
     @property
-    def firmware_upgrade(self):
-        return self._raw.get("needUpgrade", "")
+    def firmware_upgrade(self) -> bool:
+        return self._raw.get("needUpgrade", False)
 
     @property
-    def status(self):
-        return self._raw.get("status", "")
+    def status(self) -> int:
+        return int(self._raw.get("status", 0))
 
     @property
-    def status_category(self):
-        return self._raw.get("statusCategory", "")
+    def status_category(self) -> int:
+        return int(self._raw.get("statusCategory", 14))
+
+    @property
+    def uptime(self) -> int:
+        return int(self._raw.get("uptimeLong", 0))
+
+    @property
+    def cpu(self) -> int:
+        return int(self._raw.get("cpuUtil", 0))
+
+    @property
+    def memory(self) -> int:
+        return int(self._raw.get("memUtil", 0))
 
     # Connectivity
     @property
-    def mesh(self):
-        return self._raw.get("wirelessLinked", "")
+    def mesh(self) -> bool:
+        return self._raw.get("wirelessLinked", False)
+
     @property
     def uplink(self):
         return self._raw.get("uplink", "")
+
     @property
-    def ip(self):
+    def ip(self) -> str:
         return self._raw.get("ip", "")
+
+    @property
+    def clients(self) -> int:
+        return int(self._raw.get("clientNum", 0))
+
+    @property
+    def users(self) -> int:
+        return int(self._raw.get("userNum", 0))
+
+    @property
+    def guests(self) -> int:
+        return int(self._raw.get("guestNum", 0))
 
     # Throughput
     @property
-    def upload(self):
-        return self._raw.get("upload", "")
+    def upload(self) -> int:
+        return int(self._raw.get("upload", 0))
 
     @property
-    def download(self):
-        return self._raw.get("download", "")
+    def download(self) -> int:
+        return int(self._raw.get("download", 0))
 
     @property
-    def tx_rate(self):
-        return self._raw.get("txRate", "")
+    def tx_rate(self) -> int:
+        return int(self._raw.get("txRate", 0))
 
     @property
-    def rx_rate(self):
-        return self._raw.get("rxRate", "")
-
+    def rx_rate(self) -> int:
+        return int(self._raw.get("rxRate", 0))
 
     def __repr__(self):
         name = self.name or self.mac
