@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.0
+- Added additional AP and client information and statistics (@ping-localhost)
+
 ## 0.2.1
 - Fixed a permissions error by using a different endpoint for determing the site id (@sogood007)
 - Allow Home Assistant to properly retry the integration's setup if Omada is unavailable when Home Assistant starts.
