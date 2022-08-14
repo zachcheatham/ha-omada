@@ -1,15 +1,15 @@
 # Home Assistant TP-Link Omada Integration
-
-Adds Omada Controller support to Home assistant.
+Adds Omada SDN Controller support to Home assistant. This integration requires [HACS](https://hacs.xyz).
 
 ## Features
 
-- Device tracker
-- Omada client attributes
-- SSID filter
+- Device tracker for WLAN clients
+- Device and client attributes and sensors.
+- SSID filter.
 
-## Installation
+## Planned Features
 
-1) Add repository to HACS as an integration
-2) Install addon
-3) Configure in Home Assistant's Integration Settings
+- Additional sensors.
+- Switches for toggling Omada settings.
+- Client filters
+- Support for additional hardware such as switches and routers.
