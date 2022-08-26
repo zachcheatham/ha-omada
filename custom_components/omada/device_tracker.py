@@ -63,7 +63,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         async_dispatcher_connect(hass, controller.signal_update, items_added)
     )
 
-    entity_registry = await hass.helpers.entity_registry.async_get(hass)
+    entity_registry = hass.helpers.entity_registry.async_get(hass)
     initial_set = set()
 
     # Add connected entries
@@ -173,7 +173,7 @@ class OmadaClientTracker(ScannerEntity):
         return False
 
     async def remove(self):
-        entity_registry = await self.hass.helpers.entity_registry.async_get(self.hass)
+        entity_registry = self.hass.helpers.entity_registry.async_get(self.hass)
 
         await self.async_remove()
         entity_registry.async_remove(self.entity_id)
@@ -314,7 +314,7 @@ class OmadaDeviceTracker(ScannerEntity):
         return site
 
     async def remove(self):
-        entity_registry = await self.hass.helpers.entity_registry.async_get(self.hass)
+        entity_registry = self.hass.helpers.entity_registry.async_get(self.hass)
 
         await self.async_remove()
         entity_registry.async_remove(self.entity_id)
