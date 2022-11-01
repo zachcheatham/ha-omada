@@ -44,6 +44,9 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
         errors = {}
 
         if user_input is not None:
+
+            user_input[CONF_URL] = user_input[CONF_URL].strip("/")
+
             self.config = {
                 CONF_URL: user_input[CONF_URL],
                 CONF_SITE: user_input[CONF_SITE],
