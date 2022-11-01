@@ -1,11 +1,14 @@
 import logging
+import async_timeout
+
+from asyncio.exceptions import TimeoutError
 
 from aiohttp import client_exceptions
 from aiohttp.client import ClientSession
 
 from .clients import Clients
 from .devices import Devices
-from .errors import (HttpErrorCode, InvalidURLError, SSLError, UnknownSite, raise_response_error, RequestError)
+from .errors import (HttpErrorCode, InvalidURLError, SSLError, UnknownSite, raise_response_error, RequestError, RequestTimeout)
 from .known_clients import KnownClients
 
 LOGGER = logging.getLogger(__name__)
@@ -177,35 +180,37 @@ class Controller:
         LOGGER.debug("Requesting: %s - Params: %s - JSON: %s - Headers %s", url, params, json, headers)
 
         try:
-            async with self._session.request(
-                    method,
-                    url,
-                    params=params,
-                    headers=headers,
-                    json=json,
-                    ssl=self._ssl_context,
-            ) as res:
-                LOGGER.debug("%s %s %s", res.status, res.content_type, res)
+            with async_timeout.timeout(10):
+                async with self._session.request(
+                        method,
+                        url,
+                        params=params,
+                        headers=headers,
+                        json=json,
+                        ssl=self._ssl_context,
+                ) as res:
+                    LOGGER.debug("%s %s %s", res.status, res.content_type, res)
 
-                if res.status != 200:
+                    if res.status != 200:
+                        if res.content_type == "application/json":
+                            response = await res.json()
+                            self._raiseOnResponseError(url, response)
+
+                        LOGGER.warning(
+                            f"Error connecting to {url}: API returned HTTP {res.status}."
+                        )
+                        raise HttpErrorCode(url=url, code=res.status)
+
                     if res.content_type == "application/json":
                         response = await res.json()
                         self._raiseOnResponseError(url, response)
-
-                    LOGGER.warning(
-                        f"Error connecting to {url}: API returned HTTP {res.status}."
-                    )
-                    raise HttpErrorCode(url=url, code=res.status)
-
-                if res.content_type == "application/json":
-                    response = await res.json()
-                    self._raiseOnResponseError(url, response)
-                    if "result" in response:
-                        return response["result"]
-                    return response
-                else:
-                    raise RequestError("Received non-json response!")
-
+                        if "result" in response:
+                            return response["result"]
+                        return response
+                    else:
+                        raise RequestError("Received non-json response!")
+        except TimeoutError:
+            raise RequestTimeout(url)
         except client_exceptions.ClientConnectorCertificateError as err:
             raise SSLError(f"Error connecting to {url}: {err}")
         except client_exceptions.InvalidURL as err:

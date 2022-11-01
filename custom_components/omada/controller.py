@@ -2,7 +2,6 @@ import logging
 import ssl
 from datetime import timedelta
 
-import async_timeout
 from aiohttp import CookieJar
 from homeassistant.components.device_tracker import DOMAIN
 from homeassistant.const import (CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
@@ -78,6 +77,8 @@ class OmadaController:
             raise ConfigEntryAuthFailed from err
         except OmadaApiException as err:
             raise ConfigEntryNotReady from err
+        except TimeoutError as err:
+            raise ConfigEntryNotReady from err
 
         await self.update_devices()
 
@@ -143,22 +144,19 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
     controller = Controller(url, username, password, session, site=site, ssl_context=ssl_context)
 
     try:
-        with async_timeout.timeout(10):
-            await controller.login()
+        await controller.login()
 
-        with async_timeout.timeout(10):
-            await controller.update_status()
+        await controller.update_status()
 
-        with async_timeout.timeout(10):
-            try:
-                await controller.update_ssids()
-            except OperationForbidden as err:
-                if controller.version < "5.0.0":
-                    LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is "
-                                   "indicative of an invalid site id.")
-                    raise UnknownSite(f"Possible invalid site '{site}'.")
-                else:
-                    raise err
+        try:
+            await controller.update_ssids()
+        except OperationForbidden as err:
+            if controller.version < "5.0.0":
+                LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is "
+                                "indicative of an invalid site id.")
+                raise UnknownSite(f"Possible invalid site '{site}'.")
+            else:
+                raise err
 
         return controller
     except LoginFailed as err:

@@ -6,7 +6,7 @@ class HttpErrorCode(OmadaApiException):
     def __init__(self, *args: object, url: str, code: str, msg: str = "") -> None:
         self.code = code
         self.msg = msg
-        super().__init__(f"Call to {url} received status code {code}: {msg}")
+        super().__init__(f"Call to {url} received status code {code}")
 
 
 class LoginRequired(OmadaApiException):
@@ -20,10 +20,12 @@ class LoginFailed(OmadaApiException):
 class RequestError(OmadaApiException):
     pass
 
+class RequestTimeout(OmadaApiException):
+    def __init__(self, url: str) -> None:
+        super().__init__(f"Call to {url} timed out.")
 
 class InvalidURLError(RequestError):
     pass
-
 
 class SSLError(RequestError):
     pass
