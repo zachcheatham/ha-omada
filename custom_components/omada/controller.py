@@ -13,7 +13,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
 from .api.errors import (LoginFailed, OmadaApiException, OperationForbidden, RequestError, LoginRequired, UnknownSite)
-from .const import (CONF_SITE, CONF_SSID_FILTER, DATA_OMADA, DOMAIN as OMADA_DOMAIN)
+from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, DATA_OMADA, DOMAIN as OMADA_DOMAIN)
 
 SCAN_INTERVAL = timedelta(seconds=30)  # TODO Remove after websockets
 
@@ -28,6 +28,7 @@ class OmadaController:
         self.entities = {}
         self._on_close = []
         self.option_ssid_filter = None
+        self.option_disconnect_timeout = 0
 
         self.load_config_entry_options()
 
@@ -35,6 +36,7 @@ class OmadaController:
         options = self._config_entry.options
 
         self.option_ssid_filter = set(options.get(CONF_SSID_FILTER, []))
+        self.option_disconnect_timeout = options.get(CONF_DISCONNECT_TIMEOUT)
 
     @property
     def username(self):
@@ -59,6 +61,10 @@ class OmadaController:
     @property
     def ssid_filter(self):
         return self._config_entry.data[CONF_SSID_FILTER]
+
+    @property
+    def disconnect_timeout(self):
+        return self._config_entry.data[CONF_DISCONNECT_TIMEOUT]
 
     @property
     def signal_update(self):

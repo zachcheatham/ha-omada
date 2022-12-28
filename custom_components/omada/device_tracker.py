@@ -1,4 +1,5 @@
 import logging
+import time
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -11,7 +12,8 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 
-from .const import (CONF_SSID_FILTER, CONF_SITE, DATA_OMADA, DOMAIN as OMADA_DOMAIN)
+from .const import (CONF_SSID_FILTER, CONF_SITE, CONF_DISCONNECT_TIMEOUT,
+                    DATA_OMADA, DOMAIN as OMADA_DOMAIN)
 from .controller import OmadaController
 
 LOGGER = logging.getLogger(__name__)
@@ -22,7 +24,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_USERNAME): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Optional(CONF_SSID_FILTER, default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean
+    vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
+    vol.Optional(CONF_DISCONNECT_TIMEOUT, default=0): cv.positive_int
 })
 
 
@@ -146,12 +149,16 @@ class OmadaClientTracker(ScannerEntity):
 
     @property
     def is_connected(self) -> bool:
-        return self._mac in self._controller.api.clients
+        # Connected if mac is present in clients dict or if mac is previously known and was last connected in the last self._disconnect_timeout minutes
+        return (self._mac in self._controller.api.clients or
+                (self._mac in self._controller.api.known_clients and
+                 self._controller.option_disconnect_timeout is not None and
+                 self._controller.api.known_clients[self._mac].last_seen > (time.time() * 1000) - (self._controller.option_disconnect_timeout * 60000)))
 
     @property
     def extra_state_attributes(self):
 
-        if self.is_connected:
+        if self._mac in self._controller.api.clients:
             client = self._controller.api.clients[self._mac]
             return {
                 k: getattr(client, k) for k in self.CONNECTED_ATTRIBUTES
@@ -181,7 +188,7 @@ class OmadaClientTracker(ScannerEntity):
     @callback
     async def async_update(self):
         if (self._controller.option_ssid_filter
-                and self.is_connected
+                and self._mac in self._controller.api.clients
                 and self._controller.api.clients[self._mac].ssid not in self._controller.option_ssid_filter):
 
             await self.remove()
@@ -190,7 +197,7 @@ class OmadaClientTracker(ScannerEntity):
 
     async def options_updated(self):
         if (self._controller.option_ssid_filter
-                and self.is_connected
+                and self._mac in self._controller.api.clients
                 and self._controller.api.clients[self._mac].ssid not in self._controller.option_ssid_filter):
             await self.remove()
 

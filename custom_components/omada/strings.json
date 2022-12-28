@@ -22,7 +22,8 @@
     "step": {
       "device_tracker": {
         "data": {
-          "ssid_filter": "Select SSIDs to track wireless clients on"
+          "ssid_filter": "Select SSIDs to track wireless clients on",
+          "disconnect_timeout": "Client disconnect timeout (minutes)"
         },
         "description": "Configure device tracking",
         "title": "Omada Options"

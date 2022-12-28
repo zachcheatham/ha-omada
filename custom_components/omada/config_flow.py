@@ -6,7 +6,8 @@ from homeassistant.core import callback
 
 from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, \
     UnknownSite, UnsupportedVersion
-from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN, CONF_SITE, CONF_SSID_FILTER)
+from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN,
+                    CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT)
 from .controller import OmadaController, get_api_controller
 
 
@@ -113,7 +114,10 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(
                         CONF_SSID_FILTER, default=self.controller.option_ssid_filter
-                    ): cv.multi_select(ssid_filter)
+                    ): cv.multi_select(ssid_filter),
+                    vol.Optional(
+                        CONF_DISCONNECT_TIMEOUT, default=self.controller.option_disconnect_timeout
+                    ): cv.positive_int
                 }
             ),
             last_step=True
