@@ -3,12 +3,12 @@ import logging
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
 
-from .const import DATA_OMADA, DOMAIN
+from .const import DOMAIN
 from .controller import OmadaController
 
 LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["device_tracker"]
+PLATFORMS = ["device_tracker", "sensor"]
 
 
 async def async_setup(hass, config):
@@ -33,13 +33,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {DATA_OMADA: omada_controller}
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = omada_controller
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    omada_controller = hass.data[DOMAIN].pop(entry.entry_id)[DATA_OMADA]
+    omada_controller = hass.data[DOMAIN].pop(entry.entry_id)
     return await omada_controller.async_close()
 
 

@@ -6,7 +6,7 @@ from homeassistant.core import callback
 
 from .api.errors import LoginFailed, LoginRequired, OmadaApiException, RequestError, SSLError, InvalidURLError, \
     UnknownSite, UnsupportedVersion
-from .const import (DATA_OMADA, DOMAIN as OMADA_DOMAIN,
+from .const import (DOMAIN as OMADA_DOMAIN,
                     CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT)
 from .controller import OmadaController, get_api_controller
 
@@ -97,7 +97,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
         self.controller = None
 
     async def async_step_init(self, user_input=None):
-        self.controller: OmadaController = self.hass.data[OMADA_DOMAIN][self.config_entry.entry_id][DATA_OMADA]
+        self.controller: OmadaController = self.hass.data[OMADA_DOMAIN][self.config_entry.entry_id]
 
         return await self.async_step_device_tracker()
 

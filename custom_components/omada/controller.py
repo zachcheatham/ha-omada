@@ -7,13 +7,14 @@ from homeassistant.components.device_tracker import DOMAIN
 from homeassistant.const import (CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import aiohttp_client, device_registry, entity_registry
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
 from .api.errors import (LoginFailed, OmadaApiException, OperationForbidden, RequestError, LoginRequired, UnknownSite)
-from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, DATA_OMADA, DOMAIN as OMADA_DOMAIN)
+from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, DOMAIN as OMADA_DOMAIN)
 
 SCAN_INTERVAL = timedelta(seconds=30)  # TODO Remove after websockets
 
@@ -29,6 +30,7 @@ class OmadaController:
         self._on_close = []
         self.option_ssid_filter = None
         self.option_disconnect_timeout = 0
+        self.available = True
 
         self.load_config_entry_options()
 
@@ -36,7 +38,7 @@ class OmadaController:
         options = self._config_entry.options
 
         self.option_ssid_filter = set(options.get(CONF_SSID_FILTER, []))
-        self.option_disconnect_timeout = options.get(CONF_DISCONNECT_TIMEOUT)
+        self.option_disconnect_timeout = options.get(CONF_DISCONNECT_TIMEOUT, 0)
 
     @property
     def username(self):
@@ -98,11 +100,16 @@ class OmadaController:
     async def update_devices(self):
         LOGGER.debug("Updating clients...")
 
+        available = False
+
         for _ in range(2):
             try:
                 await self.api.devices.update()
                 await self.api.clients.update()
                 await self.api.known_clients.update()
+
+                available = True
+
                 break
             except LoginRequired:
                 LOGGER.warning("Token possibly expired to Omada API. Renewing...")
@@ -112,6 +119,8 @@ class OmadaController:
                 await self.api.login()
             except OmadaApiException as err:
                 LOGGER.error("Omada API error: %s", err)
+
+        self.available = available
 
         async_dispatcher_send(self.hass, self.signal_update)
 
@@ -126,9 +135,15 @@ class OmadaController:
 
         return await self.hass.config_entries.async_unload_platforms(self._config_entry, [DOMAIN])
 
+    def get_clients_filtered(self) -> list[str]:
+        return [
+            mac for mac in self.api.clients
+            if not self.option_ssid_filter or self.api.clients[mac].ssid in self.option_ssid_filter
+        ]
+
     @staticmethod
     async def async_config_entry_updated(hass, config_entry):
-        if not (controller := hass.data[OMADA_DOMAIN].get(config_entry.entry_id)[DATA_OMADA]):
+        if not (controller := hass.data[OMADA_DOMAIN].get(config_entry.entry_id)):
             return
 
         controller.load_config_entry_options()

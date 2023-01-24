@@ -203,6 +203,7 @@ class Controller:
 
                     if res.content_type == "application/json":
                         response = await res.json()
+
                         self._raiseOnResponseError(url, response)
                         if "result" in response:
                             return response["result"]
