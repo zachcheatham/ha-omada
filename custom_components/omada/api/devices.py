@@ -14,8 +14,7 @@ class Device(APIItem):
     @property
     def type(self) -> str:
         return self._raw.get("type", "")
-    
-    
+
     @property
     def mac(self) -> str:
         return self._raw.get("mac", "")
@@ -80,20 +79,97 @@ class Device(APIItem):
     @property
     def clients(self) -> int:
         return int(self._raw.get("clientNum", 0))
-    
+
     @property
     def clients_2ghz(self) -> int:
         return int(self._raw.get("clientNum2g", 0))
-    
+
     @property
     def clients_5ghz(self) -> int:
         return int(self._raw.get("clientNum5g", 0))
-    
+
     @property
     def clients_6ghz(self) -> int:
         return int(self._raw.get("clientNum6g", 0))
+    
+    # Radio Stats
+
+    @property
+    def radio_mode_2ghz(self) -> str | None:
+        return self._raw.get("wp2g", {}).get("rdMode", None)
+    
+    @property
+    def radio_mode_5ghz(self) -> str | None:
+        return self._raw.get("wp5g", {}).get("rdMode", None)
+    
+    @property
+    def radio_mode_6ghz(self) -> str | None:
+        return self._raw.get("wp6g", {}).get("rdMode", None)
+    
+    @property
+    def bandwidth_2ghz(self) -> str | None:
+        return self._raw.get("wp2g", {}).get("bandWidth", None)
+
+    @property
+    def bandwidth_5ghz(self) -> str | None:
+        return self._raw.get("wp5g", {}).get("bandWidth", None)
+    
+    @property
+    def bandwidth_6ghz(self) -> str | None:
+        return self._raw.get("wp6g", {}).get("bandWidth", None)
+    
+    @property
+    def tx_power_2ghz(self) -> int | None:
+        return self._raw.get("wp2g", {}).get("txPower", None)
+    
+    @property
+    def tx_power_5ghz(self) -> int | None:
+        return self._raw.get("wp5g", {}).get("txPower", None)
+    
+    @property
+    def tx_power_6ghz(self) -> int | None:
+        return self._raw.get("wp6g", {}).get("txPower", None)
+    
+    @property
+    def tx_utilization_2ghz(self) -> int | None:
+        return self._raw.get("wp2g", {}).get("txUtil", None)
+    
+    @property
+    def tx_utilization_5ghz(self) -> int | None:
+        return self._raw.get("wp5g", {}).get("txUtil", None)
+    
+    @property
+    def tx_utilization_6ghz(self) -> int | None:
+        return self._raw.get("wp6g", {}).get("txUtil", None)
+    
+    @property
+    def rx_utilization_2ghz(self) -> int | None:
+        return self._raw.get("wp2g", {}).get("rxUtil", None)
+    
+    @property
+    def rx_utilization_5ghz(self) -> int | None:
+        return self._raw.get("wp5g", {}).get("rxUtil", None)
+    
+    @property
+    def rx_utilization_6ghz(self) -> int | None:
+        return self._raw.get("wp6g", {}).get("rxUtil", None)
+    
+    @property
+    def interference_utilization_2ghz(self) -> int | None:
+        return self._raw.get("wp2g", {}).get("interUtil", None)
+
+    @property
+    def interference_utilization_5ghz(self) -> int | None:
+        return self._raw.get("wp5g", {}).get("interUtil", None)
+
+    @property
+    def interference_utilization_6ghz(self) -> int | None:
+        return self._raw.get("wp6g", {}).get("interUtil", None)
+
 
     # Throughput
+
+
     @property
     def upload(self) -> int:
         return int(self._raw.get("upload", 0))

@@ -20,9 +20,11 @@ RADIO = [
     "6ghz"
 ]
 
+
 class Clients(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Client, data_key="data")
+
 
 class Client(APIItem):
     """Defines all the properties for a Client"""
@@ -34,7 +36,7 @@ class Client(APIItem):
     @property
     def name(self):
         return self._raw.get("name", "")
-    
+
     @property
     def hostname(self):
         return self._raw.get("hostName", "")
@@ -73,7 +75,7 @@ class Client(APIItem):
 
     @property
     def wifi_mode(self):
-        return WIFI_MODE[self._raw.get("wifiMode")]            
+        return WIFI_MODE[self._raw.get("wifiMode")]
 
     @property
     def ap_name(self):

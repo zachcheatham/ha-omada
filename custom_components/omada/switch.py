@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 
 from .controller import OmadaController
 from .const import (DOMAIN as OMADA_DOMAIN)
-from .omada_client import OmadaClient
+from .omada_entity import OmadaClient
 
 BLOCK_SWITCH = "block"
 
@@ -35,20 +35,24 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 if mac not in controller.api.clients:
                     if mac in controller.api.known_clients:
                         initial_client_set.append(mac)
+
+                # Remove entries that have moved to a filtered out ssid since restart
                 elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
                     er.async_remove(entry.entity_id)
 
     @callback
     def items_added(clients: set = None) -> None:
 
-        if (clients is None):
-            clients = controller.get_clients_filtered()
+        if controller.option_track_clients:
+            if clients is None:
+                clients = controller.get_clients_filtered()
 
-        add_block_entities(clients, controller, async_add_entities)
+            if controller.option_client_block_switch:
+                add_block_entities(clients, controller, async_add_entities)
 
-        for signal in (controller.signal_update, controller.signal_options_update):
-            config_entry.async_on_unload(
-                async_dispatcher_connect(hass, signal, items_added))
+    for signal in (controller.signal_update, controller.signal_options_update):
+        config_entry.async_on_unload(
+            async_dispatcher_connect(hass, signal, items_added))
 
     items_added(initial_client_set)
 
@@ -108,3 +112,9 @@ class OmadaClientBlockSwitch(OmadaClient, SwitchEntity):
             return "mdi:network"
         return "mdi:network-off"
         
+    @callback
+    async def options_updated(self):
+        if not self._controller.option_client_block_switch:
+            await self.remove()
+        else:
+            await super().options_updated()

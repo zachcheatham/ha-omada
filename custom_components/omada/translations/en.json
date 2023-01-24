@@ -2,34 +2,53 @@
   "config": {
     "step": {
       "user": {
+        "title": "TP-Link Omada Controller",
+        "description": "Set required parameters to connect to your Omada Controller.",
         "data": {
-          "url": "URL",
-          "site": "Site",
-          "username": "Username",
-          "password": "Password",
-          "verify_ssl": "Verify SSL"
+          "url": "[%key:common::config_flow::data::url%]",
+          "site": "[%key:common::config_flow::data::site%]",
+          "username": "[%key:common::config_flow::data::username%]",
+          "password": "[%key:common::config_flow::data::password%]",
+          "verify_ssl": "[%key:common::config_flow::data::verify_ssl%]"
         }
       }
     },
     "error": {
-      "service_unavailable": "Unable to connect to service.",
-      "ssl_error": "Unable to verify SSL certificate.",
-      "invalid_url": "Invalid URL. Please format as http(s)://(host)",
-      "faulty_credentials": "Invalid username or password.",
-      "api_error": "An API error occurred. Please see logs for more information.",
-      "unknown_site": "Unable to get site information. Please ensure the site id is correct.",
-      "unsupported_version": "Unsupported Omada controller version."
+      "service_unavailable": "[%key:common::config_flow::error::service_unavailable%]",
+      "faulty_credentials": "[%key:common::config_flow::error::faulty_credentials%]"
     }
   },
   "options": {
     "step": {
       "device_tracker": {
         "data": {
-          "ssid_filter": "Select SSIDs to track wireless clients on",
-          "disconnect_timeout": "Additional minutes a device must be disconnected to be marked away"
+          "track_clients": "Enable client tracking",
+          "track_devices": "Enable device tracking"
+        },
+        "description": "Configure tracking",
+        "title": "Omada Options"
+      },
+      "client_options": {
+        "data": {
+          "enable_client_bandwidth_sensors": "Enable bandwidth sensors",
+          "enable_client_uptime_sensors": "Enable uptime sensors",
+          "enable_client_block_switch": "Enable client block switch",
+          "disconnect_timeout": "Client disconnect timeout (minutes)",
+          "ssid_filter": "Select SSIDs to track wireless clients on"
+        },
+        "description": "Configure client tracking",
+        "title": "Omada Options"
+      },
+      "device_options": {
+        "data": {
+          "enable_device_bandwidth_sensors": "Enable bandwidth sensors",
+          "enable_device_statistics_sensors": "Enable CPU, Memory, and Uptime sensors",
+          "enable_device_clients_sensors": "Enable client count sensors",
+          "enable_device_radio_utilization_sensors": "Enable radio utilization sensors",
+          "enable_device_controls": "Enable device controls"
         },
         "description": "Configure device tracking",
-        "title": "Omada options"
+        "title": "Omada Options"
       }
     }
   }

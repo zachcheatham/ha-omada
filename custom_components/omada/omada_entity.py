@@ -28,6 +28,9 @@ class OmadaEntity(Entity):
             self.async_on_remove(
                 async_dispatcher_connect(self.hass, signal, method))
 
+    async def async_will_remove_from_hass(self) -> None:
+        self._controller.entities[self.DOMAIN][self.TYPE].remove(self.key)
+
     @property
     def unique_id(self) -> str | None:
         return f"{self.TYPE}-{self._mac}"
@@ -116,3 +119,31 @@ class OmadaEntity(Entity):
     @callback
     async def options_updated(self):
         pass
+
+
+class OmadaClient(OmadaEntity):
+
+    @callback
+    async def async_update(self):
+        if (self._controller.option_ssid_filter
+                and self.key in self._controller.api.clients
+                and self._controller.api.clients[self.key].ssid not in self._controller.option_ssid_filter):
+
+            await self.remove()
+        else:
+            self.async_write_ha_state()
+
+    @callback
+    async def options_updated(self):
+        if (not self._controller.option_track_clients or
+            (self._controller.option_ssid_filter and self.key in self._controller.api.clients and
+                self._controller.api.clients[self.key].ssid not in self._controller.option_ssid_filter)):
+            await self.remove()
+
+
+class OmadaDevice(OmadaEntity):
+
+    @callback
+    async def options_updated(self):
+        if not self._controller.option_track_devices:
+            await self.remove()

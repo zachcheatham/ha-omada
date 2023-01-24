@@ -22,8 +22,30 @@
     "step": {
       "device_tracker": {
         "data": {
-          "ssid_filter": "Select SSIDs to track wireless clients on",
-          "disconnect_timeout": "Client disconnect timeout (minutes)"
+          "track_clients": "Enable client tracking",
+          "track_devices": "Enable device tracking"
+        },
+        "description": "Configure tracking",
+        "title": "Omada Options"
+      },
+      "client_options": {
+        "data": {
+          "enable_client_bandwidth_sensors": "Enable bandwidth sensors",
+          "enable_client_uptime_sensors": "Enable uptime sensors",
+          "enable_client_block_switch": "Enable client block switch",
+          "disconnect_timeout": "Client disconnect timeout (minutes)",
+          "ssid_filter": "Select SSIDs to track wireless clients on"
+        },
+        "description": "Configure client tracking",
+        "title": "Omada Options"
+      },
+      "device_options": {
+        "data": {
+          "enable_device_bandwidth_sensors": "Enable bandwidth sensors",
+          "enable_device_statistics_sensors": "Enable CPU, Memory, and Uptime sensors",
+          "enable_device_clients_sensors": "Enable client count sensors",
+          "enable_device_radio_utilization_sensors": "Enable radio utilization sensors",
+          "enable_device_controls": "Enable device controls"
         },
         "description": "Configure device tracking",
         "title": "Omada Options"

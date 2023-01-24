@@ -17,8 +17,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from .const import (CONF_SSID_FILTER, CONF_SITE, CONF_DISCONNECT_TIMEOUT,
                     DOMAIN as OMADA_DOMAIN, ATTR_MANUFACTURER as ATTR_OMADA_MANUFACTURER)
 from .controller import OmadaController
-from .omada_client import OmadaClient
-from .omada_entity import OmadaEntity
+from .omada_entity import OmadaClient, OmadaDevice
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +69,15 @@ DEVICE_ATTRIBUTES = [
     "mesh",
     "supports_5ghz",
     "supports_6ghz"
+    "radio_mode_2ghz",
+    "radio_mode_5ghz",
+    "radio_mode_6ghz",
+    "bandwidth_2ghz",
+    "bandwidth_5ghz",
+    "bandwidth_6ghz",
+    "tx_power_2ghz",
+    "tx_power_5ghz",
+    "tx_power_6ghz",
 ]
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -77,13 +85,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     controller.entities[DOMAIN] = {CLIENT_TRACKER: set(), DEVICE_TRACKER: set()}
 
     @callback
-    def items_added(clients: set = None, devices: set = controller.api.devices) -> None:
+    def items_added(clients: set = None, devices: set = None) -> None:
         
-        if clients is None:
-            clients = controller.get_clients_filtered()
+        if controller.option_track_clients:
+            if clients is None:
+                clients = controller.get_clients_filtered()
+            add_client_entities(controller, async_add_entities, clients)
 
-        add_client_entities(controller, async_add_entities, clients)
-        add_device_entities(controller, async_add_entities, devices)
+        if controller.option_track_devices:
+            if devices is None:
+                devices = controller.api.devices
+
+            add_device_entities(controller, async_add_entities, devices)
 
     config_entry.async_on_unload(
         async_dispatcher_connect(hass, controller.signal_update, items_added)
@@ -101,6 +114,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 if mac not in controller.api.clients:
                     if mac in controller.api.known_clients:
                         initial_client_set.append(mac)
+
+                # Remove entry if it became apart of an SSID that is filtered out
                 elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
                     er.async_remove(entry.entity_id)
 
@@ -176,7 +191,7 @@ class OmadaClientTracker(OmadaClient, ScannerEntity):
         return self.key
 
 
-class OmadaDeviceTracker(OmadaEntity, ScannerEntity):
+class OmadaDeviceTracker(OmadaDevice, ScannerEntity):
     DOMAIN = DOMAIN
     TYPE = DEVICE_TRACKER
 
