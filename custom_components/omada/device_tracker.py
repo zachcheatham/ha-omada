@@ -44,8 +44,12 @@ CONNECTED_CLIENT_ATTRIBUTES = (
     "ssid",
     "ap_mac",
     "ap_name",
+    "channel",
+    "radio",
+    "wifi_mode",
     "signal_level",
     "rssi",
+    "power_save",
     "guest"
 )
 
@@ -61,19 +65,11 @@ DEVICE_ATTRIBUTES = [
     "type",
     "model",
     "firmware",
-    "firmware_upgrade",
     "status",
     "status_category",
-    "clients",
-    "users",
-    "guests",
-    "cpu",
-    "memory",
-    "download",
-    "upload",
-    "tx_rate",
-    "rx_rate",
     "mesh",
+    "supports_5ghz",
+    "supports_6ghz"
 ]
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -193,10 +189,6 @@ class OmadaDeviceTracker(OmadaEntity, ScannerEntity):
     @property
     def source_type(self) -> str:
         return SOURCE_TYPE_ROUTER
-
-    @property
-    def name(self) -> str:
-        return self._controller.api.devices[self.key].name
     
     @property
     def unique_id(self) -> str:

@@ -43,7 +43,9 @@ class OmadaEntity(Entity):
     @property
     def base_name(self) -> str:
         if self._mac in self._controller.api.known_clients:
-            return self._controller.api.known_clients[self._mac].name
+            return self._controller.api.known_clients[self.key].name
+        elif self._mac in self._controller.api.devices:
+            return self._controller.api.devices[self.key].name
         else:
             return self._mac
         
@@ -110,3 +112,7 @@ class OmadaEntity(Entity):
             )
 
         er.async_remove(self.entity_id)
+
+    @callback
+    async def options_updated(self):
+        pass

@@ -14,7 +14,8 @@ class Device(APIItem):
     @property
     def type(self) -> str:
         return self._raw.get("type", "")
-
+    
+    
     @property
     def mac(self) -> str:
         return self._raw.get("mac", "")
@@ -26,6 +27,14 @@ class Device(APIItem):
     @property
     def model(self) -> str:
         return self._raw.get("compoundModel", "")
+
+    @property
+    def supports_6ghz(self) -> bool:
+        return self._raw.get("deviceMisc", {}).get("support6g", False)
+
+    @property
+    def supports_5ghz(self) -> bool:
+        return self._raw.get("deviceMisc", {}).get("support5g", False)
 
     @property
     def firmware(self) -> str:
@@ -71,14 +80,18 @@ class Device(APIItem):
     @property
     def clients(self) -> int:
         return int(self._raw.get("clientNum", 0))
-
+    
     @property
-    def users(self) -> int:
-        return int(self._raw.get("userNum", 0))
-
+    def clients_2ghz(self) -> int:
+        return int(self._raw.get("clientNum2g", 0))
+    
     @property
-    def guests(self) -> int:
-        return int(self._raw.get("guestNum", 0))
+    def clients_5ghz(self) -> int:
+        return int(self._raw.get("clientNum5g", 0))
+    
+    @property
+    def clients_6ghz(self) -> int:
+        return int(self._raw.get("clientNum6g", 0))
 
     # Throughput
     @property

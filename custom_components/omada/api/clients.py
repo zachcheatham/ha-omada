@@ -2,6 +2,23 @@ from .api import (APIItems, APIItem)
 
 END_POINT = "/clients"
 
+WIFI_MODE = [
+    "11a",
+    "11b",
+    "11g",
+    "11na",
+    "11ng",
+    "11ac",
+    "11axa",
+    "11axg"
+]
+
+RADIO = [
+    "2.4gz",
+    "5ghz",
+    "5ghz",
+    "6ghz"
+]
 
 class Clients(APIItems):
     def __init__(self, request):
@@ -56,7 +73,7 @@ class Client(APIItem):
 
     @property
     def wifi_mode(self):
-        return self._raw.get("wifiMode")
+        return WIFI_MODE[self._raw.get("wifiMode")]            
 
     @property
     def ap_name(self):
@@ -67,8 +84,8 @@ class Client(APIItem):
         return self._raw.get("apMac")
 
     @property
-    def radio_id(self):
-        return self._raw.get("radioId")
+    def radio(self):
+        return RADIO[self._raw.get("radioId")]
 
     @property
     def channel(self):
