@@ -214,7 +214,7 @@ class OmadaDeviceTracker(OmadaDevice, ScannerEntity):
         device = self._controller.api.devices[self.key]
 
         return DeviceInfo(
-            connections={(CONNECTION_NETWORK_MAC, device_registry.format_mac(self.key))},
+            connections={(CONNECTION_NETWORK_MAC, self.key)},
             manufacturer=ATTR_OMADA_MANUFACTURER,
             model=device.model,
             sw_version=device.firmware,
