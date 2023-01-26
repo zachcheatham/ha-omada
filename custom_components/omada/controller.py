@@ -1,14 +1,20 @@
 import logging
 import ssl
-from datetime import timedelta
 
 from aiohttp import CookieJar
+from datetime import timedelta
+from typing import Dict
+
+
 from homeassistant.components.device_tracker import DOMAIN
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import aiohttp_client
+from homeassistant.helpers import aiohttp_client, entity_registry
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
@@ -19,6 +25,7 @@ from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, CONF_T
                     CONF_ENABLE_DEVICE_BANDWIDTH_SENSORS, CONF_ENABLE_DEVICE_RADIO_UTILIZATION_SENSORS,
                     CONF_ENABLE_DEVICE_CONTROLS, CONF_ENABLE_DEVICE_STATISTICS_SENSORS,
                     CONF_ENABLE_DEVICE_CLIENTS_SENSORS, DOMAIN as OMADA_DOMAIN)
+from .omada_entity import OmadaEntity, OmadaEntityDescription
 
 SCAN_INTERVAL = timedelta(seconds=30)  # TODO Remove after websockets
 
@@ -162,11 +169,86 @@ class OmadaController:
 
         return await self.hass.config_entries.async_unload_platforms(self._config_entry, [DOMAIN])
 
-    def get_clients_filtered(self) -> list[str]:
-        return [
-            mac for mac in self.api.clients
-            if not self.option_ssid_filter or self.api.clients[mac].ssid in self.option_ssid_filter
-        ]
+    def is_client_allowed(self, client_mac: str) -> bool:
+        """Return whether a client can be included due to the ssid filter settings"""
+        return not self.option_ssid_filter or client_mac not in self.api.clients or self.api.clients[client_mac].ssid in self.option_ssid_filter
+    
+    @callback
+    def register_platform_entities(
+        self,
+        macs: set[str],
+        platform_entity: type[OmadaEntity],
+        descriptions: Dict[str, OmadaEntityDescription],
+        async_add_entities: AddEntitiesCallback
+    ):
+        """Load requested platform entities for each mac address when not already added"""
+        entities: list[OmadaEntity] = []
+
+        for description in descriptions.values():
+
+            if not description.domain in self.entities:
+                self.entities[description.domain] = {}
+            if not description.key in self.entities[description.domain]:
+                self.entities[description.domain][description.key] = set()
+
+            for mac in macs:
+                if (not mac in self.entities[description.domain][description.key] and
+                        description.allowed_fn(self, mac) and description.supported_fn(self, mac)):
+
+                    entity = platform_entity(mac, self, description)
+                    entities.append(entity)
+
+        if len(entities) > 0:
+            async_add_entities(entities)
+
+    @callback
+    def restore_cleanup_platform_entities(
+        self,
+        domain: str,
+        active_macs: set[list],
+        stored_macs: set[list],
+        platform_entity: type[OmadaEntity],
+        descriptions: Dict[str, OmadaEntityDescription],
+        config_entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+        default_description_key: str | None = None
+    ):
+        """Load or remove platform entities after setup for existing config entries"""
+            
+        entities: list[OmadaEntity] = []
+        
+        er = entity_registry.async_get(self.hass)
+
+        for entry in async_entries_for_config_entry(er, config_entry.entry_id):
+            if entry.domain == domain:
+                unique_id = entry.unique_id.split("-", 1)
+                entry_type = unique_id[0]
+                mac = unique_id[1]
+
+                description: OmadaEntityDescription
+
+                if entry_type in descriptions:
+                    description = descriptions[entry_type]
+                elif default_description_key:
+                    mac = entry.unique_id
+                    description = descriptions[default_description_key]
+
+                if mac not in active_macs:
+                    if (mac in stored_macs and description.allowed_fn(self, mac) and
+                            description.available_fn(self, mac)):
+                        
+                        if not description.domain in self.entities:
+                            self.entities[description.domain] = {}
+                        if not description.key in self.entities[description.domain]:
+                            self.entities[description.domain][description.key] = set()
+                        
+                        if not mac in self.entities[description.domain][description.key]:
+                            entity = platform_entity(mac, self, description)
+                            entities.append(entity)
+                    else:
+                        er.async_remove(entry.entity_id)
+
+        async_add_entities(entities)
 
     @staticmethod
     async def async_config_entry_updated(hass, config_entry):

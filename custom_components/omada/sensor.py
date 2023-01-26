@@ -1,22 +1,26 @@
+from __future__ import annotations
+
 import logging
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Dict
 
-from homeassistant.components.sensor import (DOMAIN, DEVICE_CLASS_TIMESTAMP,
-                                             SensorEntity)
+from homeassistant.components.sensor import (DOMAIN, DEVICE_CLASS_TIMESTAMP, SensorEntity,
+                                             SensorEntityDescription)
 from homeassistant.const import UnitOfInformation, UnitOfDataRate, PERCENTAGE
 from homeassistant.core import callback
-from homeassistant.helpers import entity_registry
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.util import dt as dt_util
 
 from .controller import OmadaController
 
 from .api.devices import Device
-from .const import (DOMAIN as OMADA_DOMAIN)
-from .omada_entity import OmadaClient, OmadaDevice
+from .const import (DOMAIN as OMADA_DOMAIN, CLIENTS)
+from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn,
+                           client_device_info_fn, unique_id_fn)
 
 DOWNLOAD_SENSOR = "downloaded"
 UPLOAD_SENSOR = "uploaded"
@@ -41,564 +45,617 @@ INTER_UTILIZATION_6G_SENSOR = "6ghz_interference_utilization"
 
 LOGGER = logging.getLogger(__name__)
 
+
+@callback
+def client_download_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client total download value and convert to MB"""
+    return controller.api.known_clients[mac].download / 1000000
+
+
+@callback
+def client_upload_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client total upload value and convert to MB"""
+    return controller.api.known_clients[mac].upload / 1000000
+
+
+@callback
+def client_rx_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client current rx rate and convert to MB/s"""
+    if mac in controller.api.clients:
+        return controller.api.clients[mac].rx_rate / 1000000
+    else:
+        return 0
+
+
+@callback
+def client_tx_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client current tx rate and convert to MB/s"""
+    if mac in controller.api.clients:
+        return controller.api.clients[mac].tx_rate / 1000000
+    else:
+        return 0
+
+
+@callback
+def client_uptime_value_fn(controller: OmadaController, mac: str) -> datetime:
+    """Retrieve client connected time"""
+    if mac in controller.api.clients:
+        return dt_util.now() - timedelta(seconds=controller.api.clients[mac].uptime)
+    else:
+        return None
+
+
+@callback
+def device_download_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client total download value and convert to MB"""
+    return controller.api.devices[mac].download / 1000000
+
+
+@callback
+def device_upload_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve client total upload value and convert to MB"""
+    return controller.api.devices[mac].upload / 1000000
+
+
+@callback
+def device_rx_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve device current rx rate and convert to MB/s"""
+    return controller.api.devices[mac].rx_rate / 1000000
+
+
+@callback
+def device_tx_value_fn(controller: OmadaController, mac: str) -> float:
+    """Retrieve device current tx rate and convert to MB/s"""
+    return controller.api.devices[mac].tx_rate / 1000000
+
+
+@callback
+def device_cpu_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device current cpu usage"""
+    return controller.api.devices[mac].cpu
+
+
+@callback
+def device_memory_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device current memory usage"""
+    return controller.api.devices[mac].memory
+
+
+@callback
+def device_uptime_value_fn(controller: OmadaController, mac: str) -> datetime:
+    """Retrieve device connected time"""
+    return dt_util.now() - timedelta(seconds=controller.api.devices[mac].uptime)
+
+
+@callback
+def device_clients_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device client count"""
+    return controller.api.devices[mac].clients
+
+
+@callback
+def device_clients_2g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 2g client count"""
+    return controller.api.devices[mac].clients_2ghz
+
+
+@callback
+def device_clients_5g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 5g client count"""
+    return controller.api.devices[mac].clients_5ghz
+
+
+@callback
+def device_clients_6g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device client count"""
+    return controller.api.devices[mac].clients_6ghz
+
+
+@callback
+def device_tx_utilization_2g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 2GHz TX utilization"""
+    return controller.api.devices[mac].tx_utilization_2ghz
+
+
+@callback
+def device_tx_utilization_5g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 5GHz TX utilization"""
+    return controller.api.devices[mac].tx_utilization_5ghz
+
+
+@callback
+def device_tx_utilization_6g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 6GHz TX utilization"""
+    return controller.api.devices[mac].tx_utilization_6ghz
+
+
+@callback
+def device_rx_utilization_2g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 2GHz RX utilization"""
+    return controller.api.devices[mac].rx_utilization_2ghz
+
+
+@callback
+def device_rx_utilization_5g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 5GHz RX utilization"""
+    return controller.api.devices[mac].rx_utilization_5ghz
+
+
+@callback
+def device_rx_utilization_6g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 6GHz RX utilization"""
+    return controller.api.devices[mac].rx_utilization_6ghz
+
+
+@callback
+def device_inter_utilization_2g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 2GHz RX utilization"""
+    return controller.api.devices[mac].interference_utilization_2ghz
+
+
+@callback
+def device_inter_utilization_5g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 5GHz RX utilization"""
+    return controller.api.devices[mac].interference_utilization_5ghz
+
+
+@callback
+def device_inter_utilization_6g_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device 6GHz RX utilization"""
+    return controller.api.devices[mac].interference_utilization_6ghz
+
+
+@dataclass
+class OmadaSensorEntityDescriptionMixin():
+    value_fn: Callable[[OmadaController, str], datetime | float | int | None]
+
+
+@dataclass
+class OmadaSensorEntityDescription(
+    OmadaEntityDescription,
+    SensorEntityDescription,
+    OmadaSensorEntityDescriptionMixin
+):
+    """Omada Sensor Entity Description"""
+
+
+CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
+    DOWNLOAD_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=DOWNLOAD_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        has_entity_name=True,
+        allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
+                                            controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: "Downloaded",
+        unique_id_fn=unique_id_fn,
+        value_fn=client_download_value_fn
+    ),
+    UPLOAD_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=UPLOAD_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        has_entity_name=True,
+        allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
+                                            controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: "Uploaded",
+        unique_id_fn=unique_id_fn,
+        value_fn=client_upload_value_fn
+    ),
+    RX_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=RX_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfDataRate.MEGABYTES_PER_SECOND,
+        has_entity_name=True,
+        allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
+                                            controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: "RX Activity",
+        unique_id_fn=unique_id_fn,
+        value_fn=client_rx_value_fn
+    ),
+    TX_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=TX_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfDataRate.MEGABYTES_PER_SECOND,
+        has_entity_name=True,
+        allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
+                                            controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: "TX Activity",
+        unique_id_fn=unique_id_fn,
+        value_fn=client_tx_value_fn
+    ),
+    UPTIME_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=UPTIME_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=DEVICE_CLASS_TIMESTAMP,
+        has_entity_name=True,
+        allowed_fn=lambda controller, mac: (controller.option_client_uptime_sensor and
+                                            controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: "Uptime",
+        unique_id_fn=unique_id_fn,
+        value_fn=client_uptime_value_fn
+    ),
+}
+
+DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
+    DOWNLOAD_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=DOWNLOAD_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_bandwidth_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Downloaded",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_download_value_fn
+    ),
+    UPLOAD_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=UPLOAD_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_bandwidth_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Uploaded",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_upload_value_fn
+    ),
+    RX_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=RX_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfDataRate.MEGABYTES_PER_SECOND,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_bandwidth_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "RX Activity",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_rx_value_fn
+    ),
+    TX_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=TX_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfDataRate.MEGABYTES_PER_SECOND,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_bandwidth_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "TX Activity",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_tx_value_fn
+    ),
+    CPU_USAGE_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=CPU_USAGE_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_statistics_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "CPU Usage",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_cpu_value_fn
+    ),
+    MEMORY_USAGE_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=MEMORY_USAGE_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_statistics_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Memory Usage",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_memory_value_fn
+    ),
+    UPTIME_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=UPTIME_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=DEVICE_CLASS_TIMESTAMP,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_statistics_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Uptime",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_uptime_value_fn
+    ),
+    CLIENTS_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=CLIENTS_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Clients",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_clients_value_fn
+    ),
+    CLIENTS_2G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=CLIENTS_2G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_2ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "2.4Ghz Clients",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_clients_2g_value_fn
+    ),
+    CLIENTS_5G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=CLIENTS_5G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_5ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "5Ghz Clients",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_clients_5g_value_fn
+    ),
+    CLIENTS_6G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=CLIENTS_6G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_6ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "6Ghz Clients",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_clients_6g_value_fn
+    ),
+    TX_UTILIZATION_2G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=TX_UTILIZATION_2G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "2.4Ghz TX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_tx_utilization_2g_value_fn
+    ),
+    TX_UTILIZATION_5G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=TX_UTILIZATION_5G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_5ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "5Ghz TX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_tx_utilization_5g_value_fn
+    ),
+    TX_UTILIZATION_6G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=TX_UTILIZATION_6G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_6ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "6Ghz TX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_tx_utilization_6g_value_fn
+    ),
+    RX_UTILIZATION_2G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=RX_UTILIZATION_2G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_2ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "2.4Ghz RX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_rx_utilization_2g_value_fn
+    ),
+    RX_UTILIZATION_5G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=RX_UTILIZATION_5G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_5ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "5Ghz RX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_rx_utilization_5g_value_fn
+    ),
+    RX_UTILIZATION_6G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=RX_UTILIZATION_6G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_6ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "6Ghz RX Utilization",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_rx_utilization_6g_value_fn
+    ),
+    INTER_UTILIZATION_2G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=INTER_UTILIZATION_2G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "2.4Ghz Interference",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_inter_utilization_2g_value_fn
+    ),
+    INTER_UTILIZATION_5G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=INTER_UTILIZATION_5G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_5ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "5Ghz Interference",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_inter_utilization_5g_value_fn
+    ),
+    INTER_UTILIZATION_6G_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=INTER_UTILIZATION_6G_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=PERCENTAGE,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_radio_utilization_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].radio_enabled_6ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "6Ghz Interference",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_inter_utilization_6g_value_fn
+    )
+}
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id]
-    controller.entities[DOMAIN] = {
-        DOWNLOAD_SENSOR: set(),
-        UPLOAD_SENSOR: set(),
-        UPTIME_SENSOR: set(),
-        RX_SENSOR: set(),
-        TX_SENSOR: set(),
-        CPU_USAGE_SENSOR: set(),
-        MEMORY_USAGE_SENSOR: set(),
-        CLIENTS_SENSOR: set(),
-        CLIENTS_2G_SENSOR: set(),
-        CLIENTS_5G_SENSOR: set(),
-        CLIENTS_6G_SENSOR: set(),
-        TX_UTILIZATION_2G_SENSOR: set(),
-        TX_UTILIZATION_5G_SENSOR: set(),
-        TX_UTILIZATION_6G_SENSOR: set(),
-        RX_UTILIZATION_2G_SENSOR: set(),
-        RX_UTILIZATION_5G_SENSOR: set(),
-        RX_UTILIZATION_6G_SENSOR: set(),
-        INTER_UTILIZATION_2G_SENSOR: set(),
-        INTER_UTILIZATION_5G_SENSOR: set(),
-        INTER_UTILIZATION_6G_SENSOR: set()
-    }
-
-    er = entity_registry.async_get(hass)
-    initial_client_set = controller.get_clients_filtered()
-
-    # Add entries that used to exist in HA but are now disconnected.
-    for entry in async_entries_for_config_entry(er, config_entry.entry_id):
-        if entry.domain == DOMAIN:
-            mac = entry.unique_id.split("-", 1)[1]
-
-            if mac not in controller.api.devices:
-                if mac not in controller.api.clients:
-                    if mac in controller.api.known_clients:
-                        initial_client_set.append(mac)
-                elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
-                    er.async_remove(entry.entity_id)
 
     @callback
-    def items_added(clients: set = None, devices: set = None) -> None:
+    def items_added() -> None:
 
         if controller.option_track_clients:
-            if clients is None:
-                clients = controller.get_clients_filtered()
-
-            if controller.option_client_bandwidth_sensors:
-                add_client_bandwidth_entities(clients, controller, async_add_entities)
-
-            if controller.option_client_uptime_sensor:
-                add_client_uptime_entities(clients, controller, async_add_entities)
+            controller.register_platform_entities(
+                controller.api.clients,
+                OmadaSensorEntity,
+                CLIENT_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
         if controller.option_track_devices:
-
-            if devices is None:
-                devices = controller.api.devices
-
-            if controller.option_device_statistics_sensors:
-                add_device_statistic_entities(devices, controller, async_add_entities)
-
-            if controller.option_device_bandwidth_sensors:
-                add_device_bandwidth_entities(devices, controller, async_add_entities)
-
-            if controller.option_device_clients_sensors:
-                add_device_clients_entities(devices, controller, async_add_entities)
-
-            if controller.option_device_radio_utilization_sensors:
-                add_device_radio_entities(devices, controller, async_add_entities)
+            controller.register_platform_entities(
+                controller.api.devices,
+                OmadaSensorEntity,
+                DEVICE_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
     for signal in (controller.signal_update, controller.signal_options_update):
         config_entry.async_on_unload(
             async_dispatcher_connect(hass, signal, items_added))
 
-    items_added(initial_client_set)
+    items_added()
+
+    if controller.option_track_clients:
+        controller.restore_cleanup_platform_entities(
+            DOMAIN,
+            controller.api.clients,
+            controller.api.known_clients,
+            OmadaSensorEntity,
+            CLIENT_ENTITY_DESCRIPTIONS,
+            config_entry,
+            async_add_entities
+        )
 
 
-@callback
-def add_client_bandwidth_entities(clients: set, controller: OmadaController, async_add_entities):
+class OmadaSensorEntity(OmadaEntity, SensorEntity):
 
-    sensors = []
+    entity_description: OmadaSensorEntityDescription
 
-    for mac in clients:
-        for sensor_class in (OmadaClientDownloadSensor, OmadaClientUploadSensor, OmadaClientRXSensor, OmadaClientTXSensor):
-            if mac not in controller.entities[DOMAIN][sensor_class.TYPE]:
-                sensors.append(sensor_class(controller, mac))
+    def __init__(self, mac: str, controller: OmadaController, description: OmadaEntityDescription) -> None:
 
-    if sensors:
-        async_add_entities(sensors)
-
-
-@callback
-def add_client_uptime_entities(clients: set, controller: OmadaController, async_add_entities):
-
-    sensors = []
-
-    for mac in clients:
-        if mac not in controller.entities[DOMAIN][UPTIME_SENSOR]:
-            sensors.append(OmadaClientUptimeSensor(controller, mac))
-
-    if sensors:
-        async_add_entities(sensors)
-
-
-class OmadaClientBandwidthSensor(OmadaClient, SensorEntity):
-
-    DOMAIN = DOMAIN
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = UnitOfInformation.MEGABYTES
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.title()}"
-    
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_client_bandwidth_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaClientDownloadSensor(OmadaClientBandwidthSensor):
-
-    TYPE = DOWNLOAD_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.known_clients[self.key].download / 1000000
-
-
-class OmadaClientUploadSensor(OmadaClientBandwidthSensor):
-
-    TYPE = UPLOAD_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.known_clients[self.key].upload / 1000000
-
-
-class OmadaClientDataRateSensor(OmadaClient, SensorEntity):
-
-    DOMAIN = DOMAIN
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = UnitOfDataRate.MEGABYTES_PER_SECOND
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.upper()} Activity"
-    
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_client_bandwidth_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaClientRXSensor(OmadaClientDataRateSensor):
-
-    TYPE = RX_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        if self.key in self._controller.api.clients:
-            return self._controller.api.clients[self.key].rx_rate / 1000000
-        else:
-            return 0
-
-
-class OmadaClientTXSensor(OmadaClientDataRateSensor):
-
-    TYPE = TX_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        if self.key in self._controller.api.clients:
-            return self._controller.api.clients[self.key].tx_rate / 1000000
-        else:
-            return 0
-
-
-class OmadaClientUptimeSensor(OmadaClient, SensorEntity):
-
-    DOMAIN = DOMAIN
-    TYPE = UPTIME_SENSOR
-
-    _attr_device_class = DEVICE_CLASS_TIMESTAMP
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, controller, mac):
-        super().__init__(controller, mac)
-        self.last_uptime = self.uptime
+        super().__init__(mac, controller, description)
+        self._attr_native_value = self.entity_description.value_fn(
+            self.controller, self._mac)
 
     @callback
-    async def async_update(self) -> None:
-        update_state = True
-
-        if (self.last_uptime == self.uptime or
-                (self.last_uptime >= 0 and self.uptime > self.last_uptime)
-                ):
-            update_state = False
-
-        self.last_uptime = self.uptime
-
-        if update_state:
+    async def async_update(self):
+        if ((value := self.entity_description.value_fn(self.controller, self._mac)) != self.native_value):
+            self._attr_native_value = value
             await super().async_update()
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.title()}"
-
-    @property
-    def native_value(self) -> datetime:
-        if self.uptime == -1:
-            return None
-
-        return dt_util.now() - timedelta(seconds=self.uptime)
-
-    @property
-    def uptime(self) -> int:
-        if self.key in self._controller.api.clients:
-            return self._controller.api.clients[self.key].uptime
-        else:
-            return -1
-        
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_client_uptime_sensor:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-@callback
-def add_device_bandwidth_entities(devices: set, controller: OmadaController, async_add_entities):
-    sensors = []
-
-    for mac in devices:
-        for sensor_class in (OmadaDeviceDownloadSensor,
-                             OmadaDeviceUploadSensor,
-                             OmadaDeviceRXSensor,
-                             OmadaDeviceTXSensor
-                             ):
-            if mac not in controller.entities[DOMAIN][sensor_class.TYPE]:
-                sensors.append(sensor_class(controller, mac))
-
-    if sensors:
-        async_add_entities(sensors)
-
-@callback
-def add_device_statistic_entities(devices: set, controller: OmadaController, async_add_entities):
-
-    sensors = []
-
-    for mac in devices:
-        for sensor_class in (OmadaDeviceUptimeSensor,
-                             OmadaDeviceCPUUtilSensor,
-                             OmadaDeviceMemUtilSensor,
-                             ):
-            if mac not in controller.entities[DOMAIN][sensor_class.TYPE]:
-                sensors.append(sensor_class(controller, mac))
-
-    if sensors:
-        async_add_entities(sensors)
-
-
-@callback
-def add_device_clients_entities(devices: set, controller: OmadaController, async_add_entities):
-
-    sensors = []
-
-    for mac in devices:
-        device: Device = controller.api.devices[mac]
-
-        if not mac in controller.entities[DOMAIN][CLIENTS_2G_SENSOR]:
-            sensors.append(OmadaDeviceClientsSensor(
-                controller, mac, CLIENTS_2G_SENSOR))
-
-        if not mac in controller.entities[DOMAIN][CLIENTS_SENSOR]:
-            sensors.append(OmadaDeviceClientsSensor(
-                controller, mac, CLIENTS_SENSOR))
-
-        if device.supports_5ghz:
-            if not mac in controller.entities[DOMAIN][CLIENTS_5G_SENSOR]:
-                sensors.append(OmadaDeviceClientsSensor(
-                    controller, mac, CLIENTS_5G_SENSOR))
-
-        if device.supports_6ghz:
-            if not mac in controller.entities[DOMAIN][CLIENTS_6G_SENSOR]:
-                sensors.append(OmadaDeviceClientsSensor(
-                    controller, mac, CLIENTS_6G_SENSOR))
-
-    if sensors:
-        async_add_entities(sensors)
-
-
-@callback
-def add_device_radio_entities(devices: set, controller: OmadaController, async_add_entities):
-
-    sensors = []
-
-    for mac in devices:
-        device: Device = controller.api.devices[mac]
-
-        for sensor_type, property in ((TX_UTILIZATION_2G_SENSOR, "tx_utilization_2ghz"),
-                                      (RX_UTILIZATION_2G_SENSOR, "rx_utilization_2ghz"),
-                                      (INTER_UTILIZATION_2G_SENSOR, "interference_utilization_2ghz")
-        ):
-
-            if not mac in controller.entities[DOMAIN][sensor_type]:
-                sensors.append(OmadaDeviceRadioUtilizationSensor(
-                    controller, mac, sensor_type, property))
-
-        if device.supports_5ghz:
-            for sensor_type, property in ((TX_UTILIZATION_5G_SENSOR, "tx_utilization_5ghz"),
-                                          (RX_UTILIZATION_5G_SENSOR, "rx_utilization_5ghz"),
-                                          (INTER_UTILIZATION_5G_SENSOR, "interference_utilization_5ghz")
-            ):
-
-                if not mac in controller.entities[DOMAIN][sensor_type]:
-                    sensors.append(OmadaDeviceRadioUtilizationSensor(
-                        controller, mac, sensor_type, property))
-
-        if device.supports_6ghz:
-            for sensor_type, property in ((TX_UTILIZATION_6G_SENSOR, "tx_utilization_6ghz"),
-                                          (RX_UTILIZATION_6G_SENSOR, "rx_utilization_6ghz"),
-                                          (INTER_UTILIZATION_6G_SENSOR, "interference_utilization_6ghz")
-            ):
-
-                if not mac in controller.entities[DOMAIN][sensor_type]:
-                    sensors.append(OmadaDeviceRadioUtilizationSensor(
-                        controller, mac, sensor_type, property))
-
-    if sensors:
-        async_add_entities(sensors)
-
-
-class OmadaDeviceBandwidthSensor(OmadaDevice, SensorEntity):
-
-    DOMAIN = DOMAIN
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = UnitOfInformation.MEGABYTES
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.title()}"
-    
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_bandwidth_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceDownloadSensor(OmadaDeviceBandwidthSensor):
-
-    TYPE = DOWNLOAD_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.devices[self.key].download / 1000000
-
-
-class OmadaDeviceUploadSensor(OmadaDeviceBandwidthSensor):
-
-    TYPE = UPLOAD_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.devices[self.key].upload / 1000000
-
-
-class OmadaDeviceDataRateSensor(OmadaDevice, SensorEntity):
-
-    DOMAIN = DOMAIN
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = UnitOfDataRate.MEGABYTES_PER_SECOND
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.upper()} Activity"
-    
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_bandwidth_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceRXSensor(OmadaDeviceDataRateSensor):
-
-    TYPE = RX_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.devices[self.key].rx_rate / 1000000
-
-
-class OmadaDeviceTXSensor(OmadaDeviceDataRateSensor):
-
-    TYPE = TX_SENSOR
-
-    @property
-    def native_value(self) -> int:
-        return self._controller.api.devices[self.key].tx_rate / 1000000
-
-
-class OmadaDeviceUptimeSensor(OmadaDevice, SensorEntity):
-
-    DOMAIN = DOMAIN
-    TYPE = UPTIME_SENSOR
-
-    _attr_device_class = DEVICE_CLASS_TIMESTAMP
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, controller, mac):
-        super().__init__(controller, mac)
-        self.last_uptime = self.uptime
-
-    @callback
-    async def async_update(self) -> None:
-        update_state = True
-
-        if (self.last_uptime == self.uptime or
-                self.uptime > self.last_uptime
-                ):
-            update_state = False
-
-        self.last_uptime = self.uptime
-
-        if update_state:
-            await super().async_update()
-
-    @property
-    def name(self) -> str:
-        return f"{super().name} {self.TYPE.title()}"
-
-    @property
-    def native_value(self) -> datetime:
-        return dt_util.now() - timedelta(seconds=self.uptime)
-
-    @property
-    def uptime(self) -> int:
-        return self._controller.api.devices[self.key].uptime
-    
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_statistics_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceSensor(OmadaDevice, SensorEntity):
-
-    DOMAIN = DOMAIN
-    PROPERTY = ""
-
-    def __init__(self, controller, mac):
-        super().__init__(controller, mac)
-        self.last_value = self.device_value
-
-    @callback
-    async def async_update(self) -> None:
-
-        if (self.last_value != self.device_value):
-            self.last_value = self.device_value
-            await super().async_update()
-
-    @property
-    def name(self) -> str:
-        return "{} {}".format(super().name, self.TYPE.replace("_", " ").title())
-
-    @property
-    def native_value(self):
-        return self.last_value
-
-    @property
-    def device_value(self):
-        return getattr(self._controller.api.devices[self.key], self.PROPERTY, None)
-
-
-class OmadaDeviceCPUUtilSensor(OmadaDeviceSensor):
-
-    TYPE = CPU_USAGE_SENSOR
-    PROPERTY = "cpu"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = PERCENTAGE
-
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_statistics_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceMemUtilSensor(OmadaDeviceSensor):
-
-    TYPE = MEMORY_USAGE_SENSOR
-    PROPERTY = "memory"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = PERCENTAGE
-
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_statistics_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceClientsSensor(OmadaDeviceSensor):
-
-    def __init__(self, controller, mac, type):
-        self.TYPE = type
-
-        if type == CLIENTS_SENSOR:
-            self.PROPERTY = "clients"
-        elif type == CLIENTS_2G_SENSOR:
-            self.PROPERTY = "clients_2ghz"
-        elif type == CLIENTS_5G_SENSOR:
-            self.PROPERTY = "clients_5ghz"
-        elif type == CLIENTS_6G_SENSOR:
-            self.PROPERTY = "clients_6ghz"
-
-        super().__init__(controller, mac)
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_clients_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()
-
-
-class OmadaDeviceRadioUtilizationSensor(OmadaDeviceSensor):
-
-    def __init__(self, controller, mac, type, property):
-        self.TYPE = type
-        self.PROPERTY = property
-
-        super().__init__(controller, mac)
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_native_unit_of_measurement = PERCENTAGE
-
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_device_radio_utilization_sensors:
-            await self.remove()
-        else:
-            await super().options_updated()

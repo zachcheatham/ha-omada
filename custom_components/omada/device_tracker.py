@@ -1,35 +1,27 @@
+from __future__ import annotations
+
 import logging
 import time
 
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
-from homeassistant.components.device_tracker import (DOMAIN, PLATFORM_SCHEMA)
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Dict, Mapping
+
+from homeassistant.components.device_tracker import DOMAIN
 from homeassistant.components.device_tracker.config_entry import ScannerEntity
 from homeassistant.components.device_tracker.const import SOURCE_TYPE_ROUTER
-from homeassistant.const import CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_VERIFY_SSL
 from homeassistant.core import callback
-from homeassistant.helpers import device_registry, entity_registry
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import (CONF_SSID_FILTER, CONF_SITE, CONF_DISCONNECT_TIMEOUT,
-                    DOMAIN as OMADA_DOMAIN, ATTR_MANUFACTURER as ATTR_OMADA_MANUFACTURER)
+from .api.controller import Controller
+from .const import DOMAIN as OMADA_DOMAIN
 from .controller import OmadaController
-from .omada_entity import OmadaClient, OmadaDevice
+from .omada_entity import (OmadaEntity, OmadaEntityDescription, client_device_info_fn,
+                           device_device_info_fn)
 
 LOGGER = logging.getLogger(__name__)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_URL): cv.string,
-    vol.Optional(CONF_SITE, default="Default"): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string,
-    vol.Optional(CONF_SSID_FILTER, default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_VERIFY_SSL, default=True): cv.boolean,
-    vol.Optional(CONF_DISCONNECT_TIMEOUT, default=0): cv.positive_int
-})
 
 CLIENT_TRACKER = "client"
 DEVICE_TRACKER = "device"
@@ -80,167 +72,185 @@ DEVICE_ATTRIBUTES = [
     "tx_power_6ghz",
 ]
 
+@callback
+def client_name_fn(api: Controller, mac: str, _) -> str:
+    if mac in api.known_clients:
+        return api.known_clients[mac].name
+    else:
+        return mac
+
+@callback
+def client_connected_fn(controller: OmadaController, mac: str) -> bool:
+    """Retrieve if clients are connected if they are currently connected to an AP or if they were last connected in the last option_disconnect_timeout minutes"""
+    return (mac in controller.api.clients or
+            (mac in controller.api.known_clients and
+             controller.option_disconnect_timeout is not None and
+             controller.api.known_clients[mac].last_seen > (time.time() * 1000) - (controller.option_disconnect_timeout * 60000)))
+
+
+@callback
+def client_attributes_fn(controller: OmadaController, mac: str) -> bool:
+    """Retrieve extra attributes for clients"""
+
+    attributes = {}
+
+    target_attrs = []
+    client = None
+
+    if mac in controller.api.clients:
+        target_attrs = CONNECTED_CLIENT_ATTRIBUTES
+        client = controller.api.clients[mac]
+    elif mac in controller.api.known_clients:
+        target_attrs = DISCONNECTED_CLIENT_ATTRIBUTES
+        client = controller.api.known_clients[mac]
+
+    for k in target_attrs:
+        if hasattr(client, k) and getattr(client, k):
+            if k in ["mac", "ap_mac"]:
+                attributes[k] = device_registry.format_mac(
+                    getattr(client, k))
+            else:
+                attributes[k] = getattr(client, k)
+
+    return attributes
+
+@callback
+def device_name_fn(api: Controller, mac: str, _) -> str:
+    if mac in api.devices:
+        return api.devices[mac].name
+    else:
+        return mac
+
+@callback
+def device_connected_fn(controller: OmadaController, mac: str) -> bool:
+    """Retrieve if a device is connected."""
+    return (mac in controller.api.devices and
+            controller.api.devices[mac].status_category == 1)
+
+@callback
+def device_attributes_fn(controller: OmadaController, mac: str) -> bool:
+    """Retrieve extra device attributes"""
+    device = controller.api.devices[mac]
+
+    attributes = {}
+    for k in DEVICE_ATTRIBUTES:
+        if hasattr(device, k) and getattr(device, k):
+            if k == "mac":
+                attributes[k] = device_registry.format_mac(
+                    getattr(device, k))
+            else:
+                attributes[k] = getattr(device, k)
+
+    return attributes
+
+@dataclass
+class OmadaDeviceTrackerEntityDescriptionMixin():
+    connected_fn: Callable[[OmadaController, str], bool]
+    extra_attributes_fn: Callable[[
+        OmadaController, str], Mapping[str, Any] | None]
+
+
+@dataclass
+class OmadaDeviceTrackerEntityDescription(
+    OmadaEntityDescription,
+    OmadaDeviceTrackerEntityDescriptionMixin
+):
+    """Omada device tracker entity description"""
+    domain = DOMAIN
+
+
+CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaDeviceTrackerEntityDescription] = {
+    CLIENT_TRACKER: OmadaDeviceTrackerEntityDescription(
+        domain=DOMAIN,
+        key=CLIENT_TRACKER,
+        allowed_fn=lambda controller, mac: (controller.option_track_clients and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=client_name_fn,
+        unique_id_fn=lambda mac, _: mac,
+        connected_fn=client_connected_fn,
+        extra_attributes_fn=client_attributes_fn
+    )
+}
+
+
+DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaDeviceTrackerEntityDescription] = {
+    DEVICE_TRACKER: OmadaDeviceTrackerEntityDescription(
+        domain=DOMAIN,
+        key=DEVICE_TRACKER,
+        allowed_fn=lambda controller, _: controller.option_track_devices,
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=device_name_fn,
+        unique_id_fn=lambda mac, _: mac,
+        connected_fn=device_connected_fn,
+        extra_attributes_fn=device_attributes_fn
+    )
+}
+
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id]
-    controller.entities[DOMAIN] = {CLIENT_TRACKER: set(), DEVICE_TRACKER: set()}
 
     @callback
-    def items_added(clients: set = None, devices: set = None) -> None:
-        
+    def items_added() -> None:
+
         if controller.option_track_clients:
-            if clients is None:
-                clients = controller.get_clients_filtered()
-            add_client_entities(controller, async_add_entities, clients)
+            controller.register_platform_entities(
+                controller.api.clients,
+                OmadaDeviceTrackerEntity,
+                CLIENT_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
         if controller.option_track_devices:
-            if devices is None:
-                devices = controller.api.devices
+            controller.register_platform_entities(
+                controller.api.devices,
+                OmadaDeviceTrackerEntity,
+                DEVICE_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
-            add_device_entities(controller, async_add_entities, devices)
+    for signal in (controller.signal_update, controller.signal_options_update):
+        config_entry.async_on_unload(
+            async_dispatcher_connect(hass, signal, items_added))
 
-    config_entry.async_on_unload(
-        async_dispatcher_connect(hass, controller.signal_update, items_added)
-    )
+    items_added()
 
-    er = entity_registry.async_get(hass)
-    initial_client_set = controller.get_clients_filtered()
+    if controller.option_track_clients:
+        controller.restore_cleanup_platform_entities(
+            DOMAIN,
+            controller.api.clients,
+            controller.api.known_clients,
+            OmadaDeviceTrackerEntity,
+            CLIENT_ENTITY_DESCRIPTIONS,
+            config_entry,
+            async_add_entities,
+            CLIENT_TRACKER
+        )
 
-    # Add entries that used to exist in HA but are now disconnected.
-    for entry in async_entries_for_config_entry(er, config_entry.entry_id):
-        if entry.domain == DOMAIN:
-            mac = entry.unique_id
+class OmadaDeviceTrackerEntity(OmadaEntity, ScannerEntity):
 
-            if mac not in controller.api.devices:
-                if mac not in controller.api.clients:
-                    if mac in controller.api.known_clients:
-                        initial_client_set.append(mac)
-
-                # Remove entry if it became apart of an SSID that is filtered out
-                elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
-                    er.async_remove(entry.entity_id)
-
-    items_added(initial_client_set)
-
-
-@callback
-def add_client_entities(controller: OmadaController, async_add_entities, macs):
-    trackers = []
-
-    for mac in macs:
-        if mac not in controller.entities[DOMAIN][OmadaClientTracker.TYPE]:
-            trackers.append(OmadaClientTracker(controller, mac))
-
-    if trackers:
-        async_add_entities(trackers)
-
-@callback
-def add_device_entities(controller: OmadaController, async_add_entities, macs):
-    trackers = []
-
-    for mac in macs:
-        if mac not in controller.entities[DOMAIN][OmadaDeviceTracker.TYPE]:
-            trackers.append(OmadaDeviceTracker(controller, mac))
-
-    if trackers:
-        async_add_entities(trackers)
-
-
-class OmadaClientTracker(OmadaClient, ScannerEntity):
-
-    DOMAIN = DOMAIN
-    TYPE = CLIENT_TRACKER
+    entity_description: OmadaDeviceTrackerEntityDescription
 
     @property
     def is_connected(self) -> bool:
-        # Connected if mac is present in clients dict or if mac is previously known and was last connected in the last self._disconnect_timeout minutes
-        return (self._mac in self._controller.api.clients or
-                (self._mac in self._controller.api.known_clients and
-                 self._controller.option_disconnect_timeout is not None and
-                 self._controller.api.known_clients[self._mac].last_seen > (time.time() * 1000) - (self._controller.option_disconnect_timeout * 60000)))
+        return self.entity_description.connected_fn(self.controller, self._mac)
 
     @property
-    def extra_state_attributes(self):
-        attributes = {}
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        return self.entity_description.extra_attributes_fn(self.controller, self._mac)
 
-        target_attrs = []
-        client = None
+    @property
+    def unique_id(self) -> str | None:
+        return self.entity_description.unique_id_fn(self._mac, self.entity_description.key)
 
-        if self._mac in self._controller.api.clients:
-            target_attrs = CONNECTED_CLIENT_ATTRIBUTES
-            client = self._controller.api.clients[self._mac]
-        elif self._mac in self._controller.api.known_clients:
-            target_attrs = DISCONNECTED_CLIENT_ATTRIBUTES
-            client = self._controller.api.known_clients[self._mac]
-
-        for k in target_attrs:
-            if hasattr(client, k) and getattr(client, k):
-                if k in ["mac", "ap_mac"]:
-                    attributes[k] = device_registry.format_mac(
-                        getattr(client, k))
-                else:
-                    attributes[k] = getattr(client, k)
-
-        return attributes
+    @property
+    def device_info(self) -> DeviceInfo | None:
+        return self.entity_description.device_info_fn(self.controller.api, self._mac)
 
     @property
     def source_type(self) -> str:
         return SOURCE_TYPE_ROUTER
-    
-    @property
-    def unique_id(self) -> str:
-        return self.key
-
-
-class OmadaDeviceTracker(OmadaDevice, ScannerEntity):
-    DOMAIN = DOMAIN
-    TYPE = DEVICE_TRACKER
-
-    @property
-    def is_connected(self):
-        return (self.key in self._controller.api.devices and 
-            self._controller.api.devices[self.key].status_category == 1)
-    
-
-    @property
-    def source_type(self) -> str:
-        return SOURCE_TYPE_ROUTER
-    
-    @property
-    def unique_id(self) -> str:
-        return self.key
-    
-    @property
-    def device_info(self):
-        device = self._controller.api.devices[self.key]
-
-        return DeviceInfo(
-            connections={(CONNECTION_NETWORK_MAC, self.key)},
-            manufacturer=ATTR_OMADA_MANUFACTURER,
-            model=device.model,
-            sw_version=device.firmware,
-            name=device.name,
-        )
-    
-    async def async_update_device_registry(self) -> None:
-        dr = device_registry.async_get(self.hass)
-        dr.async_get_or_create(
-            config_entry_id=self._controller.config_entry.entry_id, **self.device_info
-        )
-    
-    @property
-    def extra_state_attributes(self):
-        device = self._controller.api.devices[self.key]
-
-        attributes = {}
-        for k in DEVICE_ATTRIBUTES:
-            if hasattr(device, k) and getattr(device, k):
-                if k == "mac":
-                    attributes[k] = device_registry.format_mac(getattr(device, k))
-                else:
-                    attributes[k] = getattr(device, k)
-
-        return attributes
-
-    @callback
-    async def options_updated(self):
-        pass

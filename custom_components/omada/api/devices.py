@@ -7,6 +7,25 @@ class Devices(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Device)
 
+    async def async_set_radio_enable(self, mac: str, radio: int, enable: bool) -> None:
+
+        key=""
+
+        if radio == 2:
+            key = "radioSetting2g"
+        elif radio == 5:
+            key = "radioSetting5g"
+        elif radio == 6:
+            key = "radioSetting6g"
+
+        data={
+            key: {
+                "radioEnable": enable
+            }
+        }
+
+        await self._request("PATCH", f"/eaps/{mac}", json=data)
+
 
 class Device(APIItem):
     """Defines all the properties for a Device"""
@@ -93,6 +112,18 @@ class Device(APIItem):
         return int(self._raw.get("clientNum6g", 0))
     
     # Radio Stats
+
+    @property
+    def radio_enabled_2ghz(self) -> bool | None:
+        return self._raw.get("radioSetting2g", {}).get("radioEnable", None)
+    
+    @property
+    def radio_enabled_5ghz(self) -> bool | None:
+        return self._raw.get("radioSetting5g", {}).get("radioEnable", None)
+    
+    @property
+    def radio_enabled_6ghz(self) -> bool | None:
+        return self._raw.get("radioSetting6g", {}).get("radioEnable", None)
 
     @property
     def radio_mode_2ghz(self) -> str | None:

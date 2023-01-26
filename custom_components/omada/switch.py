@@ -1,120 +1,203 @@
-import logging
-from datetime import datetime, timedelta
+from __future__ import annotations
 
-from homeassistant.components.switch import DOMAIN, SwitchEntity
+import logging
+
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Dict, Any
+
+from homeassistant.components.switch import (
+    DOMAIN, SwitchEntity, SwitchEntityDescription, SwitchDeviceClass)
 from homeassistant.core import callback
-from homeassistant.helpers import entity_registry
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_registry import async_entries_for_config_entry
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .controller import OmadaController
-from .const import (DOMAIN as OMADA_DOMAIN)
-from .omada_entity import OmadaClient
+
+from .api.controller import Controller
+from .const import DOMAIN as OMADA_DOMAIN
+from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn,
+                           client_device_info_fn, unique_id_fn)
 
 BLOCK_SWITCH = "block"
+RADIO_2G_SWITCH = "2ghz_radio"
+RADIO_5G_SWITCH = "5ghz_radio"
+RADIO_6G_SWITCH = "6ghz_radio"
 
 LOGGER = logging.getLogger(__name__)
 
 
+@callback
+async def block_client_fn(api: Controller, mac: str, enabled: bool) -> None:
+    await api.known_clients.async_set_block(mac, enabled)
+
+
+@callback
+async def enable_2g_radio_fn(api: Controller, mac: str, enabled: bool) -> None:
+    await api.devices.async_set_radio_enable(mac, 2, enabled)
+
+
+@callback
+async def enable_5g_radio_fn(api: Controller, mac: str, enabled: bool) -> None:
+    await api.devices.async_set_radio_enable(mac, 5, enabled)
+
+
+@callback
+async def enable_6g_radio_fn(api: Controller, mac: str, enabled: bool) -> None:
+    await api.devices.async_set_radio_enable(mac, 6, enabled)
+
+
+@dataclass
+class OmadaSwitchEntityDescriptionMixin():
+    control_fn: Callable[[Controller, str, bool], Coroutine[Any, Any, None]]
+    is_on_fn: Callable[[Controller, str], bool]
+
+
+@dataclass
+class OmadaSwitchEntityDescription(
+    OmadaEntityDescription,
+    SwitchEntityDescription,
+    OmadaSwitchEntityDescriptionMixin
+):
+    """Omada Sensor Entity Description"""
+
+
+CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
+    BLOCK_SWITCH: OmadaSwitchEntityDescription(
+        domain=DOMAIN,
+        key=BLOCK_SWITCH,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        has_entity_name=True,
+        icon="mdi:network",
+        allowed_fn=lambda controller, mac: (controller.option_track_clients and
+                                            controller.option_client_block_switch and
+                                            controller.is_client_allowed(mac)),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=client_device_info_fn,
+        name_fn=lambda *_: None,
+        unique_id_fn=unique_id_fn,
+        is_on_fn=lambda api, mac: not api.known_clients[mac].block,
+        control_fn=block_client_fn
+    )
+}
+
+DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
+    RADIO_2G_SWITCH: OmadaSwitchEntityDescription(
+        domain=DOMAIN,
+        key=RADIO_2G_SWITCH,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        has_entity_name=True,
+        icon="mdi:wifi",
+        allowed_fn=lambda controller, _: (controller.option_device_controls and
+                                          controller.option_track_devices),
+        supported_fn=lambda *_: True,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "2.4Ghz Radio",
+        unique_id_fn=unique_id_fn,
+        is_on_fn=lambda api, mac: api.devices[mac].radio_enabled_2ghz,
+        control_fn=enable_2g_radio_fn
+    ),
+    RADIO_5G_SWITCH: OmadaSwitchEntityDescription(
+        domain=DOMAIN,
+        key=RADIO_5G_SWITCH,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        has_entity_name=True,
+        icon="mdi:wifi",
+        allowed_fn=lambda controller, _: (controller.option_device_controls and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].supports_5ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "5Ghz Radio",
+        unique_id_fn=unique_id_fn,
+        is_on_fn=lambda api, mac: api.devices[mac].radio_enabled_5ghz,
+        control_fn=enable_5g_radio_fn
+    ),
+    RADIO_6G_SWITCH: OmadaSwitchEntityDescription(
+        domain=DOMAIN,
+        key=RADIO_6G_SWITCH,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        has_entity_name=True,
+        icon="mdi:wifi",
+        allowed_fn=lambda controller, _: (controller.option_device_controls and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].supports_6ghz,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "6Ghz Radio",
+        unique_id_fn=unique_id_fn,
+        is_on_fn=lambda api, mac: api.devices[mac].radio_enabled_6ghz,
+        control_fn=enable_6g_radio_fn
+    )
+}
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id]
-    controller.entities[DOMAIN] = {
-        BLOCK_SWITCH: set()
-    }
-
-    er = entity_registry.async_get(hass)
-    initial_client_set = controller.get_clients_filtered()
-
-    # Add entries that used to exist in HA but are now disconnected.
-    for entry in async_entries_for_config_entry(er, config_entry.entry_id):
-        if entry.domain == DOMAIN:
-            mac = entry.unique_id.split("-", 1)[1]
-
-            if mac not in controller.api.devices:
-                if mac not in controller.api.clients:
-                    if mac in controller.api.known_clients:
-                        initial_client_set.append(mac)
-
-                # Remove entries that have moved to a filtered out ssid since restart
-                elif controller.option_ssid_filter and controller.api.clients[mac].ssid not in controller.option_ssid_filter:
-                    er.async_remove(entry.entity_id)
 
     @callback
-    def items_added(clients: set = None) -> None:
+    def items_added() -> None:
 
         if controller.option_track_clients:
-            if clients is None:
-                clients = controller.get_clients_filtered()
+            controller.register_platform_entities(
+                controller.api.clients,
+                OmadaSwitchEntity,
+                CLIENT_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
-            if controller.option_client_block_switch:
-                add_block_entities(clients, controller, async_add_entities)
+        if controller.option_track_devices:
+            controller.register_platform_entities(
+                controller.api.devices,
+                OmadaSwitchEntity,
+                DEVICE_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
     for signal in (controller.signal_update, controller.signal_options_update):
         config_entry.async_on_unload(
             async_dispatcher_connect(hass, signal, items_added))
 
-    items_added(initial_client_set)
+    items_added()
+
+    if controller.option_track_clients:
+        controller.restore_cleanup_platform_entities(
+            DOMAIN,
+            controller.api.clients,
+            controller.api.known_clients,
+            OmadaSwitchEntity,
+            CLIENT_ENTITY_DESCRIPTIONS,
+            config_entry,
+            async_add_entities
+        )
 
 
-@callback
-def add_block_entities(clients: set, controller: OmadaController, async_add_entities):
+class OmadaSwitchEntity(OmadaEntity, SwitchEntity):
 
-    sensors = []
+    entity_description: OmadaSwitchEntityDescription
 
-    for mac in clients:
-        if mac not in controller.entities[DOMAIN][BLOCK_SWITCH]:
-            sensors.append(OmadaClientBlockSwitch(controller, mac))
+    def __init__(self, mac: str, controller: OmadaController, description: OmadaEntityDescription) -> None:
+        super().__init__(mac, controller, description)
+        self._attr_is_on = self.entity_description.is_on_fn(
+            controller.api, mac)
 
-    if sensors:
-        async_add_entities(sensors)
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.entity_description.control_fn(self.controller.api, self._mac, True)
+        self._attr_is_on = True
+        self.async_write_ha_state()
 
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.entity_description.control_fn(self.controller.api, self._mac, False)
+        self._attr_is_on = False
+        self.async_write_ha_state()
 
-class OmadaClientBlockSwitch(OmadaClient, SwitchEntity):
-
-    DOMAIN = DOMAIN
-    TYPE = BLOCK_SWITCH
-
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, controller: OmadaController, mac: str) -> None:
-        super().__init__(controller, mac)
-
-        self._is_blocked = self.client_blocked
-    
     @callback
-    async def async_update(self) -> None:
-        if self._is_blocked != self.client_blocked:
-            self._is_blocked = self.client_blocked
+    async def async_update(self):
+
+        if ((is_on := self.entity_description.is_on_fn(self.controller.api, self._mac)) != self.is_on):
+            self._attr_is_on = is_on
             await super().async_update()
-    
-    async def async_turn_on(self, **kwargs):
-        await self._controller.api.known_clients.async_set_block(self.key, False)
-        self._is_blocked = False
-        self.async_write_ha_state()
-
-    async def async_turn_off(self, **kwargs):
-        await self._controller.api.known_clients.async_set_block(self.key, True)
-        self._is_blocked = True
-        self.async_write_ha_state()
-
-    @property
-    def is_on(self):
-        return not self._is_blocked
-
-    @property
-    def client_blocked(self):
-        return self._controller.api.known_clients[self.key].block
-
-    @property
-    def icon(self):
-        if self.is_on:
-            return "mdi:network"
-        return "mdi:network-off"
-        
-    @callback
-    async def options_updated(self):
-        if not self._controller.option_client_block_switch:
-            await self.remove()
-        else:
-            await super().options_updated()

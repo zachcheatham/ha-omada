@@ -1,5 +1,3 @@
-import urllib.parse
-
 from .api import (APIItems, APIItem)
 
 END_POINT = "/insight/clients"
@@ -10,7 +8,7 @@ class KnownClients(APIItems):
         super().__init__(request, END_POINT, "mac", KnownClient, data_key="data")
 
     async def async_set_block(self, mac: str, block: bool) -> None:
-        await self._request("POST", "/cmd/clients/{}/{}".format(urllib.parse.quote_plus(mac), block and "block" or "unblock"))
+        await self._request("POST", "/cmd/clients/{}/{}".format(mac, block and "block" or "unblock"))
 
 class KnownClient(APIItem):
     @property
