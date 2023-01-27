@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, Any
 
 from homeassistant.components.sensor import (DOMAIN, DEVICE_CLASS_TIMESTAMP, SensorEntity,
                                              SensorEntityDescription)
@@ -17,7 +17,6 @@ from homeassistant.util import dt as dt_util
 
 from .controller import OmadaController
 
-from .api.devices import Device
 from .const import (DOMAIN as OMADA_DOMAIN, CLIENTS)
 from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn,
                            client_device_info_fn, unique_id_fn)
@@ -77,10 +76,10 @@ def client_tx_value_fn(controller: OmadaController, mac: str) -> float:
 
 
 @callback
-def client_uptime_value_fn(controller: OmadaController, mac: str) -> datetime:
-    """Retrieve client connected time"""
+def client_uptime_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve client uptime seconds"""
     if mac in controller.api.clients:
-        return dt_util.now() - timedelta(seconds=controller.api.clients[mac].uptime)
+        return controller.api.clients[mac].uptime
     else:
         return None
 
@@ -123,8 +122,8 @@ def device_memory_value_fn(controller: OmadaController, mac: str) -> int:
 
 @callback
 def device_uptime_value_fn(controller: OmadaController, mac: str) -> datetime:
-    """Retrieve device connected time"""
-    return dt_util.now() - timedelta(seconds=controller.api.devices[mac].uptime)
+    """Retrieve device uptime seconds"""
+    return controller.api.devices[mac].uptime
 
 
 @callback
@@ -207,16 +206,20 @@ def device_inter_utilization_6g_value_fn(controller: OmadaController, mac: str) 
 
 @dataclass
 class OmadaSensorEntityDescriptionMixin():
-    value_fn: Callable[[OmadaController, str], datetime | float | int | None]
+    value_fn: Callable[[OmadaController, str], float | int | None]
 
 
 @dataclass
 class OmadaSensorEntityDescription(
-    OmadaEntityDescription,
     SensorEntityDescription,
+    OmadaEntityDescription,
     OmadaSensorEntityDescriptionMixin
 ):
     """Omada Sensor Entity Description"""
+
+    should_update_fn: Callable[[
+        Any, Any], bool] | None = lambda prev_value, next_value: prev_value != next_value
+    value_format_fn: Callable[[Any], Any] | None = None
 
 
 CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
@@ -298,7 +301,13 @@ CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         device_info_fn=client_device_info_fn,
         name_fn=lambda *_: "Uptime",
         unique_id_fn=unique_id_fn,
-        value_fn=client_uptime_value_fn
+        value_fn=client_uptime_value_fn,
+        should_update_fn=lambda prev_value, next_value: ((prev_value == None or next_value == None) and
+                                                         (prev_value != next_value)) or
+                                                        (prev_value != None and next_value != None and
+                                                         next_value < prev_value),
+        value_format_fn=lambda value: value != None and dt_util.now() -
+        timedelta(seconds=value) or None
     ),
 }
 
@@ -406,7 +415,13 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         device_info_fn=device_device_info_fn,
         name_fn=lambda *_: "Uptime",
         unique_id_fn=unique_id_fn,
-        value_fn=device_uptime_value_fn
+        value_fn=device_uptime_value_fn,
+        should_update_fn=lambda prev_value, next_value: ((prev_value == None or next_value == None) and
+                                                         (prev_value != next_value)) or
+        (prev_value != None and next_value != None and
+         next_value < prev_value),
+        value_format_fn=lambda value: value != None and dt_util.now() -
+        timedelta(seconds=value) or None
     ),
     CLIENTS_SENSOR: OmadaSensorEntityDescription(
         domain=DOMAIN,
@@ -647,15 +662,38 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class OmadaSensorEntity(OmadaEntity, SensorEntity):
 
     entity_description: OmadaSensorEntityDescription
+    _internal_value: Any | None = None
 
     def __init__(self, mac: str, controller: OmadaController, description: OmadaEntityDescription) -> None:
 
         super().__init__(mac, controller, description)
-        self._attr_native_value = self.entity_description.value_fn(
+
+        self.update_value(force_update=True)
+
+    def update_value(self, force_update=False) -> bool:
+        """Update value. Returns true if state should update."""
+        prev_value = None
+        if self.entity_description.value_format_fn != None:
+            prev_value = self._internal_value
+        else:
+            prev_value = self._attr_native_value
+
+        next_value = self.entity_description.value_fn(
             self.controller, self._mac)
+
+        if force_update or self.entity_description.should_update_fn(prev_value, next_value):
+            if self.entity_description.value_format_fn != None:
+                self._internal_value = next_value
+                next_value = self.entity_description.value_format_fn(
+                    next_value)
+
+            self._attr_native_value = next_value
+
+            return True
+
+        return False
 
     @callback
     async def async_update(self):
-        if ((value := self.entity_description.value_fn(self.controller, self._mac)) != self.native_value):
-            self._attr_native_value = value
+        if self.update_value():
             await super().async_update()
