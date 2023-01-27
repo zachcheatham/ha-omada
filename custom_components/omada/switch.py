@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 
 @callback
 async def block_client_fn(api: Controller, mac: str, enabled: bool) -> None:
-    await api.known_clients.async_set_block(mac, enabled)
+    await api.known_clients.async_set_block(mac, not enabled)
 
 
 @callback
