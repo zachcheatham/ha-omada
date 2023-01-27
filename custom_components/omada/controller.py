@@ -233,10 +233,7 @@ class OmadaController:
                     mac = entry.unique_id
                     description = descriptions[default_description_key]
 
-                if mac not in active_macs:
-                    if (mac in stored_macs and description.allowed_fn(self, mac) and
-                            description.available_fn(self, mac)):
-                        
+                if mac not in active_macs and mac in stored_macs:
                         if not description.domain in self.entities:
                             self.entities[description.domain] = {}
                         if not description.key in self.entities[description.domain]:
@@ -245,8 +242,8 @@ class OmadaController:
                         if not mac in self.entities[description.domain][description.key]:
                             entity = platform_entity(mac, self, description)
                             entities.append(entity)
-                    else:
-                        er.async_remove(entry.entity_id)
+                elif mac not in stored_macs or not description.allowed_fn(self, mac):
+                    er.async_remove(entry.entity_id)
 
         async_add_entities(entities)
 

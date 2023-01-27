@@ -162,8 +162,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         config_entry.async_on_unload(
             async_dispatcher_connect(hass, signal, items_added))
 
-    items_added()
-
     if controller.option_track_clients:
         controller.restore_cleanup_platform_entities(
             DOMAIN,
@@ -174,6 +172,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             config_entry,
             async_add_entities
         )
+
+    items_added()
 
 
 class OmadaSwitchEntity(OmadaEntity, SwitchEntity):
