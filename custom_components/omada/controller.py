@@ -207,6 +207,7 @@ class OmadaController:
         domain: str,
         active_macs: set[list],
         stored_macs: set[list],
+        ignore_macs: set[list],
         platform_entity: type[OmadaEntity],
         descriptions: Dict[str, OmadaEntityDescription],
         config_entry: ConfigEntry,
@@ -214,16 +215,17 @@ class OmadaController:
         default_description_key: str | None = None
     ):
         """Load or remove platform entities after setup for existing config entries"""
-            
+
         entities: list[OmadaEntity] = []
-        
+
         er = entity_registry.async_get(self.hass)
 
         for entry in async_entries_for_config_entry(er, config_entry.entry_id):
             if entry.domain == domain:
+                LOGGER.debug(entry.unique_id)
                 unique_id = entry.unique_id.split("-", 1)
                 entry_type = unique_id[0]
-                mac = unique_id[1]
+                mac = len(unique_id) > 1 and unique_id[1] or ""
 
                 description: OmadaEntityDescription
 
@@ -233,17 +235,19 @@ class OmadaController:
                     mac = entry.unique_id
                     description = descriptions[default_description_key]
 
-                if mac not in active_macs and mac in stored_macs:
+                if mac not in ignore_macs:
+                    if mac not in active_macs and mac in stored_macs:
                         if not description.domain in self.entities:
                             self.entities[description.domain] = {}
                         if not description.key in self.entities[description.domain]:
                             self.entities[description.domain][description.key] = set()
-                        
+
                         if not mac in self.entities[description.domain][description.key]:
                             entity = platform_entity(mac, self, description)
                             entities.append(entity)
-                elif mac not in stored_macs or not description.allowed_fn(self, mac):
-                    er.async_remove(entry.entity_id)
+                    elif mac not in stored_macs or not description.allowed_fn(self, mac):
+                        LOGGER.debug("Removing %s %s", domain, mac)
+                        er.async_remove(entry.entity_id)
 
         async_add_entities(entities)
 

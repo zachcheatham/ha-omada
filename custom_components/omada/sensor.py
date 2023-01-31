@@ -660,6 +660,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             DOMAIN,
             controller.api.clients,
             controller.api.known_clients,
+            controller.api.devices,
             OmadaSensorEntity,
             CLIENT_ENTITY_DESCRIPTIONS,
             config_entry,
