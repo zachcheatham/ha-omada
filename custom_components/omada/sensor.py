@@ -264,7 +264,7 @@ CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
                                             controller.option_track_clients and
                                             controller.is_client_allowed(mac)),
-        supported_fn=lambda *_: True,
+        supported_fn=lambda controller, mac: controller.api.known_clients[mac].wireless,
         available_fn=lambda controller, _: controller.available,
         device_info_fn=client_device_info_fn,
         name_fn=lambda *_: "RX Activity",
@@ -280,7 +280,7 @@ CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         allowed_fn=lambda controller, mac: (controller.option_client_bandwidth_sensors and
                                             controller.option_track_clients and
                                             controller.is_client_allowed(mac)),
-        supported_fn=lambda *_: True,
+        supported_fn=lambda controller, mac: controller.api.known_clients[mac].wireless,
         available_fn=lambda controller, _: controller.available,
         device_info_fn=client_device_info_fn,
         name_fn=lambda *_: "TX Activity",

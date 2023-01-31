@@ -59,7 +59,7 @@ class Client(APIItem):
 
     @property
     def wireless(self):
-        return self._raw.get("wireless")
+        return self._raw.get("wireless", False)
 
     @property
     def ssid(self):
