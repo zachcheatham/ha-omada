@@ -48,20 +48,30 @@ LOGGER = logging.getLogger(__name__)
 @callback
 def client_download_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client total download value and convert to MB"""
-    return controller.api.known_clients[mac].download / 1000000
+
+    known_bandwidth = controller.api.known_clients[mac].download
+    if mac in controller.api.clients:
+        known_bandwidth += controller.api.clients[mac].traffic_down
+    
+    return round(known_bandwidth / 1048576, 2)
 
 
 @callback
 def client_upload_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client total upload value and convert to MB"""
-    return controller.api.known_clients[mac].upload / 1000000
+
+    known_bandwidth = controller.api.known_clients[mac].upload
+    if mac in controller.api.clients:
+        known_bandwidth += controller.api.clients[mac].traffic_up
+    
+    return round(known_bandwidth / 1048576, 2)
 
 
 @callback
 def client_rx_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client current rx rate and convert to MB/s"""
     if mac in controller.api.clients:
-        return controller.api.clients[mac].rx_rate / 1000000
+        return round(controller.api.clients[mac].rx_rate / 1048576, 2)
     else:
         return 0
 
@@ -70,7 +80,7 @@ def client_rx_value_fn(controller: OmadaController, mac: str) -> float:
 def client_tx_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client current tx rate and convert to MB/s"""
     if mac in controller.api.clients:
-        return controller.api.clients[mac].tx_rate / 1000000
+        return round(controller.api.clients[mac].tx_rate / 1048576, 2)
     else:
         return 0
 
@@ -87,25 +97,25 @@ def client_uptime_value_fn(controller: OmadaController, mac: str) -> int:
 @callback
 def device_download_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client total download value and convert to MB"""
-    return controller.api.devices[mac].download / 1000000
+    return round(controller.api.devices[mac].download / 1048576, 2)
 
 
 @callback
 def device_upload_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve client total upload value and convert to MB"""
-    return controller.api.devices[mac].upload / 1000000
+    return round(controller.api.devices[mac].upload / 1048576, 2)
 
 
 @callback
 def device_rx_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve device current rx rate and convert to MB/s"""
-    return controller.api.devices[mac].rx_rate / 1000000
+    return round(controller.api.devices[mac].rx_rate / 1048576, 2)
 
 
 @callback
 def device_tx_value_fn(controller: OmadaController, mac: str) -> float:
     """Retrieve device current tx rate and convert to MB/s"""
-    return controller.api.devices[mac].tx_rate / 1000000
+    return round(controller.api.devices[mac].tx_rate / 1048576, 2)
 
 
 @callback
