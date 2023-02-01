@@ -1,15 +1,20 @@
 from .api import (APIItems, APIItem)
 
+from typing import Any, Dict
+
 END_POINT = "/devices"
+DETAILS_END_POINT = "/eaps/%key"
+DETAILS_PROPERTIES = ["ssidOverrides", "wlanId"]
 
 
 class Devices(APIItems):
     def __init__(self, request):
-        super().__init__(request, END_POINT, "mac", Device)
+        super().__init__(request, END_POINT, "mac", Device,
+                         details_end_point=DETAILS_END_POINT, details_properties=DETAILS_PROPERTIES)
 
     async def async_set_radio_enable(self, mac: str, radio: int, enable: bool) -> None:
 
-        key=""
+        key = ""
 
         if radio == 2:
             key = "radioSetting2g"
@@ -18,13 +23,22 @@ class Devices(APIItems):
         elif radio == 6:
             key = "radioSetting6g"
 
-        data={
+        data = {
             key: {
                 "radioEnable": enable
             }
         }
 
         await self._request("PATCH", f"/eaps/{mac}", json=data)
+
+    async def async_set_ssid_enable(self, mac: str, existing_overrides: list[Dict[str, Any]], wlan_id: str, ssid: str, enabled: bool) -> None:
+
+        for ssid_override in existing_overrides:
+            if ssid_override["globalSsid"] == ssid:
+                ssid_override["ssidEnable"] = enabled
+                break
+
+        await self._request("PATCH", f"/eaps/{mac}", json={"wlanId": wlan_id, "ssidOverrides": existing_overrides})
 
 
 class Device(APIItem):
@@ -82,7 +96,12 @@ class Device(APIItem):
     def memory(self) -> int:
         return int(self._raw.get("memUtil", 0))
 
+    @property
+    def wlan_id(self) -> str:
+        return self._details.get("wlanId", None)
+
     # Connectivity
+
     @property
     def mesh(self) -> bool:
         return self._raw.get("wirelessLinked", False)
@@ -94,6 +113,10 @@ class Device(APIItem):
     @property
     def ip(self) -> str:
         return self._raw.get("ip", "")
+
+    @property
+    def ssid_overrides(self) -> list[Dict[str, Any]]:
+        return self._details.get("ssidOverrides", [])
 
     @property
     def clients(self) -> int:
@@ -110,17 +133,17 @@ class Device(APIItem):
     @property
     def clients_6ghz(self) -> int:
         return int(self._raw.get("clientNum6g", 0))
-    
+
     # Radio Stats
 
     @property
     def radio_enabled_2ghz(self) -> bool | None:
         return self._raw.get("radioSetting2g", {}).get("radioEnable", None)
-    
+
     @property
     def radio_enabled_5ghz(self) -> bool | None:
         return self._raw.get("radioSetting5g", {}).get("radioEnable", None)
-    
+
     @property
     def radio_enabled_6ghz(self) -> bool | None:
         return self._raw.get("radioSetting6g", {}).get("radioEnable", None)
@@ -128,15 +151,15 @@ class Device(APIItem):
     @property
     def radio_mode_2ghz(self) -> str | None:
         return self._raw.get("wp2g", {}).get("rdMode", None)
-    
+
     @property
     def radio_mode_5ghz(self) -> str | None:
         return self._raw.get("wp5g", {}).get("rdMode", None)
-    
+
     @property
     def radio_mode_6ghz(self) -> str | None:
         return self._raw.get("wp6g", {}).get("rdMode", None)
-    
+
     @property
     def bandwidth_2ghz(self) -> str | None:
         return self._raw.get("wp2g", {}).get("bandWidth", None)
@@ -144,47 +167,47 @@ class Device(APIItem):
     @property
     def bandwidth_5ghz(self) -> str | None:
         return self._raw.get("wp5g", {}).get("bandWidth", None)
-    
+
     @property
     def bandwidth_6ghz(self) -> str | None:
         return self._raw.get("wp6g", {}).get("bandWidth", None)
-    
+
     @property
     def tx_power_2ghz(self) -> int | None:
         return self._raw.get("wp2g", {}).get("txPower", None)
-    
+
     @property
     def tx_power_5ghz(self) -> int | None:
         return self._raw.get("wp5g", {}).get("txPower", None)
-    
+
     @property
     def tx_power_6ghz(self) -> int | None:
         return self._raw.get("wp6g", {}).get("txPower", None)
-    
+
     @property
     def tx_utilization_2ghz(self) -> int | None:
         return self._raw.get("wp2g", {}).get("txUtil", None)
-    
+
     @property
     def tx_utilization_5ghz(self) -> int | None:
         return self._raw.get("wp5g", {}).get("txUtil", None)
-    
+
     @property
     def tx_utilization_6ghz(self) -> int | None:
         return self._raw.get("wp6g", {}).get("txUtil", None)
-    
+
     @property
     def rx_utilization_2ghz(self) -> int | None:
         return self._raw.get("wp2g", {}).get("rxUtil", None)
-    
+
     @property
     def rx_utilization_5ghz(self) -> int | None:
         return self._raw.get("wp5g", {}).get("rxUtil", None)
-    
+
     @property
     def rx_utilization_6ghz(self) -> int | None:
         return self._raw.get("wp6g", {}).get("rxUtil", None)
-    
+
     @property
     def interference_utilization_2ghz(self) -> int | None:
         return self._raw.get("wp2g", {}).get("interUtil", None)
@@ -197,9 +220,7 @@ class Device(APIItem):
     def interference_utilization_6ghz(self) -> int | None:
         return self._raw.get("wp6g", {}).get("interUtil", None)
 
-
     # Throughput
-
 
     @property
     def upload(self) -> int:

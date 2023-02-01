@@ -2,13 +2,14 @@ import logging
 import ssl
 
 from aiohttp import CookieJar
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Dict
 
 
 from homeassistant.components.device_tracker import DOMAIN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
+from homeassistant.const import (
+    CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import aiohttp_client, entity_registry
@@ -16,9 +17,11 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .api.controller import Controller
-from .api.errors import (LoginFailed, OmadaApiException, OperationForbidden, RequestError, LoginRequired, UnknownSite)
+from .api.errors import (LoginFailed, OmadaApiException,
+                         OperationForbidden, RequestError, LoginRequired, UnknownSite)
 from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, CONF_TRACK_CLIENTS,
                     CONF_TRACK_DEVICES, CONF_ENABLE_CLIENT_BANDWIDTH_SENSORS,
                     CONF_ENABLE_CLIENT_UPTIME_SENSORS, CONF_ENABLE_CLIENT_BLOCK_SWITCH,
@@ -27,7 +30,8 @@ from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT, CONF_T
                     CONF_ENABLE_DEVICE_CLIENTS_SENSORS, DOMAIN as OMADA_DOMAIN)
 from .omada_entity import OmadaEntity, OmadaEntityDescription
 
-SCAN_INTERVAL = timedelta(seconds=30)  # TODO Remove after websockets
+SCAN_INTERVAL = timedelta(seconds=30)
+DETAILS_SCAN_INTERVAL = timedelta(seconds=120)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +43,7 @@ class OmadaController:
         self.api: Controller = None
         self.entities = {}
         self._on_close = []
+        self._last_full_update: datetime = None
         self.option_track_clients = True
         self.option_track_devices = True
         self.option_ssid_filter = None
@@ -119,24 +124,25 @@ class OmadaController:
         except TimeoutError as err:
             raise ConfigEntryNotReady from err
 
-        await self.update_devices()
+        await self.async_update()
 
-        self.async_on_close(async_track_time_interval(self.hass, self.update_all, SCAN_INTERVAL))
+        self.async_on_close(async_track_time_interval(
+            self.hass, self.async_update, SCAN_INTERVAL))
 
         self._config_entry.add_update_listener(self.async_config_entry_updated)
 
-    async def update_all(self, now):
-        await self.update_devices()
+    async def async_update(self, event_time: datetime = None):
 
-    async def update_devices(self):
-        LOGGER.debug("Updating clients...")
+        LOGGER.debug("Polling controller...")
 
         available = False
+        update_all: bool = (event_time is None or self._last_full_update is None or
+                            self._last_full_update <= event_time - DETAILS_SCAN_INTERVAL)
 
         for _ in range(2):
             try:
                 if self.option_track_devices:
-                    await self.api.devices.update()
+                    await self.api.devices.update(update_details=update_all)
 
                 if self.option_track_clients:
                     await self.api.clients.update()
@@ -146,15 +152,19 @@ class OmadaController:
 
                 break
             except LoginRequired:
-                LOGGER.warning("Token possibly expired to Omada API. Renewing...")
+                LOGGER.warning(
+                    "Token possibly expired to Omada API. Renewing...")
                 await self.api.login()
             except RequestError as err:
-                LOGGER.error("Unable to connect to Omada: %s. Renewing login...", err)
+                LOGGER.error(
+                    "Unable to connect to Omada: %s. Renewing login...", err)
                 await self.api.login()
             except OmadaApiException as err:
                 LOGGER.error("Omada API error: %s", err)
 
         self.available = available
+        if update_all:
+            self._last_full_update = dt_util.now()
 
         async_dispatcher_send(self.hass, self.signal_update)
 
@@ -172,7 +182,7 @@ class OmadaController:
     def is_client_allowed(self, client_mac: str) -> bool:
         """Return whether a client can be included due to the ssid filter settings"""
         return not self.option_ssid_filter or client_mac not in self.api.clients or self.api.clients[client_mac].ssid in self.option_ssid_filter
-    
+
     @callback
     def register_platform_entities(
         self,
@@ -222,7 +232,6 @@ class OmadaController:
 
         for entry in async_entries_for_config_entry(er, config_entry.entry_id):
             if entry.domain == domain:
-                LOGGER.debug(entry.unique_id)
                 unique_id = entry.unique_id.split("-", 1)
                 entry_type = unique_id[0]
                 mac = len(unique_id) > 1 and unique_id[1] or ""
@@ -246,7 +255,6 @@ class OmadaController:
                             entity = platform_entity(mac, self, description)
                             entities.append(entity)
                     elif mac not in stored_macs or not description.allowed_fn(self, mac):
-                        LOGGER.debug("Removing %s %s", domain, mac)
                         er.async_remove(entry.entity_id)
 
         async_add_entities(entities)
@@ -272,7 +280,8 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
             hass, verify_ssl=verify_ssl, cookie_jar=CookieJar(unsafe=True)
         )
 
-    controller = Controller(url, username, password, session, site=site, ssl_context=ssl_context)
+    controller = Controller(url, username, password,
+                            session, site=site, ssl_context=ssl_context)
 
     try:
         await controller.login()
@@ -284,14 +293,15 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
         except OperationForbidden as err:
             if controller.version < "5.0.0":
                 LOGGER.warning("API returned 'operation forbidden' while retrieving SSID stats. This is "
-                                "indicative of an invalid site id.")
+                               "indicative of an invalid site id.")
                 raise UnknownSite(f"Possible invalid site '{site}'.")
             else:
                 raise err
 
         return controller
     except LoginFailed as err:
-        LOGGER.warning("Connected to Omada at %s but unauthorized: %s", url, err)
+        LOGGER.warning(
+            "Connected to Omada at %s but unauthorized: %s", url, err)
         raise err
     except OmadaApiException as err:
         LOGGER.warning("Unable to connect to Omada at %s: %s", url, err)

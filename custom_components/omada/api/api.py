@@ -1,22 +1,29 @@
 import logging
 
+from typing import Any, Callable, Dict
+
 from .errors import (OmadaApiException)
 
 LOGGER = logging.getLogger(__name__)
 
 
 class APIItems:
-    def __init__(self, request, end_point, key, item_cls, data_key: str = ""):
-        self._request = request
-        self._end_point = end_point
-        self.items = {}
-        self._key = key
+    def __init__(self, request: Callable[[str, str, list[Dict[str, str]]], Any], end_point: str, key: str,
+                 item_cls: str, data_key: str = "", details_end_point: str | None = None, details_properties: list[str] | None = None):
+        self._request: Callable[[
+            str, str, list[Dict[str, str]]], Any] = request
+        self._end_point: str = end_point
+        self._details_end_point: str | None = details_end_point
+        self._details_properties: list[str] | None = details_properties
+        self.items: Dict[str, Any] = {}
+        self._key: str = key
         self._item_cls = item_cls
-        self._data_key = data_key
+        self._data_key: str = data_key
 
-    async def update(self):
+    async def update(self, update_details: bool = False):
         response = await self._request("GET", self._end_point, params=[
-            ("filters.active", "true"), ("currentPage", "1"), ("currentPageSize", "1000000")
+            ("filters.active", "true"), ("currentPage",
+                                         "1"), ("currentPageSize", "1000000")
         ])
 
         if self._data_key == "":
@@ -28,6 +35,11 @@ class APIItems:
         else:
             raise OmadaApiException(
                 f"Unable to parse {{self._end_point}}: '{self._data_key}' array not available in response.")
+
+        if update_details and self._details_end_point is not None:
+            for key in self.items:
+                response = await self._request("GET", self._details_end_point.replace('%key', key))
+                self._process_raw_detail(response, key)
 
     def _process_raw(self, raw):
         present_items = set()
@@ -50,6 +62,22 @@ class APIItems:
         for key in removed_items:
             self.items.pop(key)
 
+    def _process_raw_detail(self, raw: dict, key: str):
+        if key not in self.items:
+            LOGGER.warning(
+                "Asked to process details for %s key %s but does not exist in items.")
+        else:
+            details: dict = None
+
+            if self._details_properties is not None:
+                details = {}
+                for property in self._details_properties:
+                    details[property] = raw[property]
+            else:
+                details = raw
+
+            self.items[key]._details = details
+
     def __getitem__(self, obj_id):
         try:
             return self.items[obj_id]
@@ -62,7 +90,8 @@ class APIItems:
 
 class APIItem:
     def __init__(self, raw):
-        self._raw = raw
+        self._raw: Dict[str, Any] = raw
+        self._details: Dict[str, Any] = {}
 
     def update(self, raw=None):
         if raw:

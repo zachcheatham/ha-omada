@@ -27,6 +27,14 @@ RADIO_6G_SWITCH = "6ghz_radio"
 LOGGER = logging.getLogger(__name__)
 
 
+def ssid_enabled_fn(api: Controller, mac: str, ssid: str):
+    for ssid_override in api.devices[mac].ssid_overrides:
+        if ssid_override["globalSsid"] == ssid:
+            return ssid_override.get("ssidEnable", False)
+
+    return False
+
+
 @callback
 async def block_client_fn(api: Controller, mac: str, enabled: bool) -> None:
     await api.known_clients.async_set_block(mac, not enabled)
@@ -45,6 +53,11 @@ async def enable_5g_radio_fn(api: Controller, mac: str, enabled: bool) -> None:
 @callback
 async def enable_6g_radio_fn(api: Controller, mac: str, enabled: bool) -> None:
     await api.devices.async_set_radio_enable(mac, 6, enabled)
+
+
+@callback
+async def enable_ssid_fn(api: Controller, mac: str, enabled: bool, ssid: str) -> None:
+    await api.devices.async_set_ssid_enable(mac, api.devices[mac].ssid_overrides, api.devices[mac].wlan_id, ssid, enabled)
 
 
 @dataclass
@@ -90,7 +103,7 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
         device_class=SwitchDeviceClass.SWITCH,
         entity_category=EntityCategory.CONFIG,
         has_entity_name=True,
-        icon="mdi:wifi",
+        icon="mdi:antenna",
         allowed_fn=lambda controller, _: (controller.option_device_controls and
                                           controller.option_track_devices),
         supported_fn=lambda *_: True,
@@ -107,7 +120,7 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
         device_class=SwitchDeviceClass.SWITCH,
         entity_category=EntityCategory.CONFIG,
         has_entity_name=True,
-        icon="mdi:wifi",
+        icon="mdi:antenna",
         allowed_fn=lambda controller, _: (controller.option_device_controls and
                                           controller.option_track_devices),
         supported_fn=lambda controller, mac: controller.api.devices[mac].supports_5ghz,
@@ -124,7 +137,7 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
         device_class=SwitchDeviceClass.SWITCH,
         entity_category=EntityCategory.CONFIG,
         has_entity_name=True,
-        icon="mdi:wifi",
+        icon="mdi:antenna",
         allowed_fn=lambda controller, _: (controller.option_device_controls and
                                           controller.option_track_devices),
         supported_fn=lambda controller, mac: controller.api.devices[mac].supports_6ghz,
@@ -152,10 +165,43 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 async_add_entities)
 
         if controller.option_track_devices:
+            device_descriptions: Dict[str, OmadaSwitchEntityDescription] = None
+
+            if controller.option_device_controls:
+
+                device_descriptions = DEVICE_ENTITY_DESCRIPTIONS.copy()
+
+                # Add SSID switches
+                for ssid in controller.api.ssids:
+                    key = "ssid_{}".format(ssid.replace("-", "_"))
+                    device_descriptions[key] = OmadaSwitchEntityDescription(
+                        domain=DOMAIN,
+                        key=key,
+                        device_class=SwitchDeviceClass.SWITCH,
+                        entity_category=EntityCategory.CONFIG,
+                        has_entity_name=True,
+                        icon="mdi:wifi",
+                        allowed_fn=lambda controller, _, ssid=ssid: (controller.option_device_controls and
+                                                                     controller.option_track_devices and
+                                                                     ssid in controller.api.ssids),
+                        supported_fn=lambda *_: True,
+                        available_fn=lambda controller, _: controller.available,
+                        device_info_fn=device_device_info_fn,
+                        name_fn=lambda *_, ssid=ssid: f"{ssid} WLAN",
+                        unique_id_fn=unique_id_fn,
+                        is_on_fn=lambda api, mac, s=ssid: ssid_enabled_fn(
+                            api, mac, s),
+                        control_fn=lambda api, mac, enabled, s=ssid: enable_ssid_fn(
+                            api, mac, enabled, s)
+                    )
+
+            else:
+                device_descriptions = DEVICE_ENTITY_DESCRIPTIONS
+
             controller.register_platform_entities(
                 controller.api.devices,
                 OmadaSwitchEntity,
-                DEVICE_ENTITY_DESCRIPTIONS,
+                device_descriptions,
                 async_add_entities)
 
     for signal in (controller.signal_update, controller.signal_options_update):
