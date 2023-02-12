@@ -12,44 +12,44 @@ class KnownClients(APIItems):
 
 class KnownClient(APIItem):
     @property
-    def mac(self):
+    def mac(self) -> str:
         return self._raw.get("mac", "")
 
     @property
-    def name(self):
-        return self._raw.get("name", "")
+    def name(self) -> str | None:
+        return self._raw.get("name", None)
 
     @property
-    def wireless(self):
-        return self._raw.get("wireless")
+    def wireless(self) -> bool:
+        return self._raw.get("wireless", False)
 
     @property
-    def guest(self):
-        return self._raw.get("guest")
+    def guest(self) -> bool:
+        return self._raw.get("guest", False)
 
     @property
-    def download(self):
-        return self._raw.get("download")
+    def download(self) -> int:
+        return self._raw.get("download", 0)
 
     @property
-    def upload(self):
-        return self._raw.get("upload")
+    def upload(self) -> int:
+        return self._raw.get("upload", 0)
 
     @property
-    def duration(self):
-        return self._raw.get("duration")
+    def duration(self) -> int:
+        return self._raw.get("duration", 0)
 
     @property
-    def last_seen(self):
-        return self._raw.get("lastSeen")
+    def last_seen(self) -> int:
+        return self._raw.get("lastSeen", 0)
 
     @property
-    def block(self):
-        return self._raw.get("block")
+    def block(self) -> bool:
+        return self._raw.get("block", False)
 
     @property
-    def manager(self):
-        return self._raw.get("manager")
+    def manager(self) -> bool:
+        return self._raw.get("manager", False)
 
     def __repr__(self):
         name = self.name or self.mac

@@ -21,7 +21,7 @@ RADIO = [
 ]
 
 
-class Clients(APIItems):
+class Clients(APIItems): 
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Client, data_key="data")
 
@@ -30,128 +30,128 @@ class Client(APIItem):
     """Defines all the properties for a Client"""
 
     @property
-    def mac(self):
+    def mac(self) -> str:
         return self._raw.get("mac", "")
 
     @property
-    def name(self):
-        return self._raw.get("name", "")
+    def name(self) -> str | None:
+        return self._raw.get("name")
 
     @property
-    def hostname(self):
-        return self._raw.get("hostName", "")
+    def hostname(self) -> str | None:
+        return self._raw.get("hostName")
 
     @property
-    def device_type(self):
-        return self._raw.get("deviceType", "")
+    def device_type(self) -> str | None:
+        return self._raw.get("deviceType")
 
     @property
-    def ip(self):
-        return self._raw.get("ip", "")
+    def ip(self) -> str | None:
+        return self._raw.get("ip")
 
     @property
-    def connect_type(self):
-        return self._raw.get("connectType", "")
+    def connect_type(self) -> int | None:
+        return self._raw.get("connectType")
 
     @property
-    def connect_dev_type(self):
-        return self._raw.get("connectDevType", "")
+    def connect_dev_type(self) -> str | None:
+        return self._raw.get("connectDevType")
 
     @property
-    def wireless(self):
+    def wireless(self) -> bool:
         return self._raw.get("wireless", False)
 
     @property
-    def ssid(self):
-        return self._raw.get("ssid", "")
+    def ssid(self) -> str | None:
+        return self._raw.get("ssid")
 
     @property
-    def signal_level(self):
-        return self._raw.get("signalLevel")
+    def signal_level(self) -> int:
+        return self._raw.get("signalLevel", 0)
 
     @property
-    def signal_rank(self):
-        return self._raw.get("signalRank")
+    def signal_rank(self) -> int:
+        return self._raw.get("signalRank", 0)
 
     @property
-    def wifi_mode(self):
+    def wifi_mode(self) -> str:
         return WIFI_MODE[self._raw.get("wifiMode")]
 
     @property
-    def ap_name(self):
+    def ap_name(self) -> str | None:
         return self._raw.get("apName")
 
     @property
-    def ap_mac(self):
+    def ap_mac(self) -> str | None:
         return self._raw.get("apMac")
 
     @property
-    def radio(self):
+    def radio(self) -> str:
         return RADIO[self._raw.get("radioId")]
 
     @property
-    def channel(self):
+    def channel(self) -> int | None:
         return self._raw.get("channel")
 
     @property
-    def rx_rate(self):
+    def rx_rate(self) -> int | None:
         return self._raw.get("rxRate")
 
     @property
-    def tx_rate(self):
+    def tx_rate(self) -> int | None:
         return self._raw.get("txRate")
 
     @property
-    def power_save(self):
-        return self._raw.get("powerSave")
+    def power_save(self) -> bool:
+        return self._raw.get("powerSave", False)
 
     @property
-    def rssi(self):
+    def rssi(self) -> int | None:
         return self._raw.get("rssi")
 
     @property
-    def activity(self):
-        return self._raw.get("activity")
+    def activity(self) -> int:
+        return self._raw.get("activity", 0)
 
     @property
-    def traffic_down(self):
-        return self._raw.get("trafficDown")
+    def traffic_down(self) -> int:
+        return self._raw.get("trafficDown", 0)
 
     @property
-    def traffic_up(self):
-        return self._raw.get("trafficUp")
+    def traffic_up(self) -> int:
+        return self._raw.get("trafficUp", 0)
 
     @property
-    def uptime(self):
-        return self._raw.get("uptime")
+    def uptime(self) -> int:
+        return self._raw.get("uptime", -1)
 
     @property
-    def last_seen(self):
-        return self._raw.get("lastSeen")
+    def last_seen(self) -> int:
+        return self._raw.get("lastSeen", -1)
 
     @property
-    def auth_status(self):
-        return self._raw.get("auth_status")
+    def auth_status(self) -> int | None:
+        return self._raw.get("authStatus")
 
     @property
-    def guest(self):
-        return self._raw.get("guest")
+    def guest(self) -> bool:
+        return self._raw.get("guest", False)
 
     @property
-    def active(self):
-        return self._raw.get("active")
+    def active(self) -> bool:
+        return self._raw.get("active", False)
 
     @property
-    def manager(self):
-        return self._raw.get("manager")
+    def manager(self) -> bool:
+        return self._raw.get("manager", False)
 
     @property
-    def down_packet(self):
-        return self._raw.get("downPacket")
+    def down_packet(self) -> int:
+        return self._raw.get("downPacket", 0)
 
     @property
-    def up_packet(self):
-        return self._raw.get("upPacket")
+    def up_packet(self) -> int:
+        return self._raw.get("upPacket", 0)
 
     def __repr__(self):
         name = self.name or self.mac
