@@ -113,7 +113,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
             elif self.options[CONF_TRACK_DEVICES]:
                 return await self.async_step_device_options()
             else:
-                return await self.async_step_controller_options()
+                return await self._update_options()
         
 
         return self.async_show_form(
@@ -137,7 +137,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
             if self.options[CONF_TRACK_DEVICES]:
                 return await self.async_step_device_options()
             else:
-                return await self.async_step_controller_options()
+                return await self._update_options()
             
         ssid_filter = {ssid: ssid for ssid in sorted(self.controller.api.ssids)}
 
@@ -172,7 +172,6 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             self.options.update(user_input)
             return await self._update_options()
-            #return await self.async_step_controller_options()
         
         return self.async_show_form(
             step_id="device_options",
