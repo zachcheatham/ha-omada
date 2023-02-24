@@ -3,14 +3,17 @@ from .api import (APIItems, APIItem)
 from typing import Any, Dict
 
 END_POINT = "/devices"
-DETAILS_END_POINT = "/eaps/%key"
+AP_DETAILS_END_POINT = "/eaps/%key"
 DETAILS_PROPERTIES = ["ssidOverrides", "wlanId"]
 
 
 class Devices(APIItems):
+
+    _has_details=True
+    _details_properties = DETAILS_PROPERTIES
+
     def __init__(self, request):
-        super().__init__(request, END_POINT, "mac", Device,
-                         details_end_point=DETAILS_END_POINT, details_properties=DETAILS_PROPERTIES)
+        super().__init__(request, END_POINT, "mac", Device)
 
     async def async_set_radio_enable(self, mac: str, radio: int, enable: bool) -> None:
 
@@ -44,6 +47,12 @@ class Devices(APIItems):
 class Device(APIItem):
     """Defines all the properties for a Device"""
 
+    @property
+    def _details_end_point(self) -> str:
+        if self.type == "ap":
+            return AP_DETAILS_END_POINT
+        return None
+    
     @property
     def type(self) -> str:
         return self._raw.get("type", "")

@@ -8,13 +8,15 @@ LOGGER = logging.getLogger(__name__)
 
 
 class APIItems:
+
+    _has_details = False
+    _details_properties = None
+
     def __init__(self, request: Callable[[str, str, list[Dict[str, str]]], Any], end_point: str, key: str,
                  item_cls: str, data_key: str = "", details_end_point: str | None = None, details_properties: list[str] | None = None):
         self._request: Callable[[
             str, str, list[Dict[str, str]]], Any] = request
         self._end_point: str = end_point
-        self._details_end_point: str | None = details_end_point
-        self._details_properties: list[str] | None = details_properties
         self.items: Dict[str, Any] = {}
         self._key: str = key
         self._item_cls = item_cls
@@ -36,10 +38,11 @@ class APIItems:
             raise OmadaApiException(
                 f"Unable to parse {{self._end_point}}: '{self._data_key}' array not available in response.")
 
-        if update_details and self._details_end_point is not None:
-            for key in self.items:
-                response = await self._request("GET", self._details_end_point.replace('%key', key))
-                self._process_raw_detail(response, key)
+        if update_details and self._has_details:
+            for key, item in self.items.items():
+                if item._details_end_point is not None:
+                    response = await self._request("GET", item._details_end_point.replace('%key', key))
+                    self._process_raw_detail(response, key)
 
     def _process_raw(self, raw):
         present_items = set()
@@ -72,7 +75,8 @@ class APIItems:
             if self._details_properties is not None:
                 details = {}
                 for property in self._details_properties:
-                    details[property] = raw[property]
+                    if property in raw:
+                        details[property] = raw[property]
             else:
                 details = raw
 
@@ -89,6 +93,8 @@ class APIItems:
 
 
 class APIItem:
+    _details_end_point = None
+
     def __init__(self, raw):
         self._raw: Dict[str, Any] = raw
         self._details: Dict[str, Any] = {}
