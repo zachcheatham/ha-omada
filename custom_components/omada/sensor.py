@@ -32,6 +32,8 @@ CLIENTS_SENSOR = "clients"
 CLIENTS_2G_SENSOR = "2ghz_clients"
 CLIENTS_5G_SENSOR = "5ghz_clients"
 CLIENTS_6G_SENSOR = "6ghz_clients"
+GUESTS_SENSOR = "guests"
+USERS_SENSOR = "users"
 TX_UTILIZATION_2G_SENSOR = "2ghz_tx_utilization"
 TX_UTILIZATION_5G_SENSOR = "5ghz_tx_utilization"
 TX_UTILIZATION_6G_SENSOR = "6ghz_tx_utilization"
@@ -158,6 +160,18 @@ def device_clients_5g_value_fn(controller: OmadaController, mac: str) -> int:
 def device_clients_6g_value_fn(controller: OmadaController, mac: str) -> int:
     """Retrieve device client count"""
     return controller.api.devices[mac].clients_6ghz
+
+
+@callback
+def device_guests_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device guest count"""
+    return controller.api.devices[mac].guests
+
+
+@callback
+def device_users_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device user count"""
+    return controller.api.devices[mac].users
 
 
 @callback
@@ -492,6 +506,36 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         name_fn=lambda *_: "6Ghz Clients",
         unique_id_fn=unique_id_fn,
         value_fn=device_clients_6g_value_fn
+    ),
+    GUESTS_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=GUESTS_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].type == "ap",
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Guests",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_guests_value_fn
+    ),
+    USERS_SENSOR: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=USERS_SENSOR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=CLIENTS,
+        has_entity_name=True,
+        allowed_fn=lambda controller, _: (controller.option_device_clients_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].type == "ap",
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Users",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_users_value_fn
     ),
     TX_UTILIZATION_2G_SENSOR: OmadaSensorEntityDescription(
         domain=DOMAIN,

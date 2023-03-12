@@ -142,6 +142,14 @@ class Device(APIItem):
     @property
     def clients_6ghz(self) -> int:
         return int(self._raw.get("clientNum6g", 0))
+    
+    @property
+    def guests(self) -> int:
+        return int(self._raw.get("guestNum", 0))
+
+    @property
+    def users(self) -> int:
+        return int(self._raw.get("userNum", 0))
 
     # Radio Stats
 
