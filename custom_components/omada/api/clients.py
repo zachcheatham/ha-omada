@@ -75,7 +75,7 @@ class Client(APIItem):
 
     @property
     def wifi_mode(self) -> str:
-        return WIFI_MODE[self._raw.get("wifiMode")]
+        return WIFI_MODE[self._raw.get("wifiMode", 0)]
 
     @property
     def ap_name(self) -> str | None:
@@ -87,7 +87,7 @@ class Client(APIItem):
 
     @property
     def radio(self) -> str:
-        return RADIO[self._raw.get("radioId")]
+        return RADIO[self._raw.get("radioId", 0)]
 
     @property
     def channel(self) -> int | None:

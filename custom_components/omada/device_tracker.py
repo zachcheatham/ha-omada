@@ -16,6 +16,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .api.controller import Controller
+from .api.clients import Client
 from .const import DOMAIN as OMADA_DOMAIN
 from .controller import OmadaController
 from .omada_entity import (OmadaEntity, OmadaEntityDescription, client_device_info_fn,
@@ -41,6 +42,15 @@ CONNECTED_CLIENT_ATTRIBUTES = (
     "signal_level",
     "rssi",
     "power_save",
+    "guest"
+)
+
+CONNECTED_WIRED_CLIENT_ATTRIBUTES = (
+    "name",
+    "hostname",
+    "ip",
+    "mac",
+    "wireless",
     "guest"
 )
 
@@ -95,11 +105,14 @@ def client_attributes_fn(controller: OmadaController, mac: str) -> bool:
     attributes = {}
 
     target_attrs = []
-    client = None
+    client: Client = None
 
     if mac in controller.api.clients:
-        target_attrs = CONNECTED_CLIENT_ATTRIBUTES
         client = controller.api.clients[mac]
+        if client.wireless:
+            target_attrs = CONNECTED_CLIENT_ATTRIBUTES
+        else:
+            target_attrs = CONNECTED_WIRED_CLIENT_ATTRIBUTES
     elif mac in controller.api.known_clients:
         target_attrs = DISCONNECTED_CLIENT_ATTRIBUTES
         client = controller.api.known_clients[mac]
