@@ -180,7 +180,7 @@ class Controller:
         LOGGER.debug("Requesting: %s - Params: %s - JSON: %s - Headers %s", url, params, json, headers)
 
         try:
-            with async_timeout.timeout(10):
+            with async_timeout.timeout(30):
                 async with self._session.request(
                         method,
                         url,
