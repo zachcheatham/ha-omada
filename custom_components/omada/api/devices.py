@@ -1,58 +1,22 @@
-from .api import (APIItems, APIItem)
+import logging
 
 from typing import Any, Dict
 
+from .api import (APIItems, APIItem)
+
 END_POINT = "/devices"
 AP_DETAILS_END_POINT = "/eaps/%key"
-DETAILS_PROPERTIES = ["ssidOverrides", "wlanId"]
+FIRMWARE_END_POINT = "/devices/%key/firmware"
 
+AP_DETAILS_PROPERTIES = ["ssidOverrides", "wlanId"]
+FIRMWARE_PROPERTIES = ["lastFwVer", "fwReleaseLog"]
 
-class Devices(APIItems):
-
-    _has_details=True
-    _details_properties = DETAILS_PROPERTIES
-
-    def __init__(self, request):
-        super().__init__(request, END_POINT, "mac", Device)
-
-    async def async_set_radio_enable(self, mac: str, radio: int, enable: bool) -> None:
-
-        key = ""
-
-        if radio == 2:
-            key = "radioSetting2g"
-        elif radio == 5:
-            key = "radioSetting5g"
-        elif radio == 6:
-            key = "radioSetting6g"
-
-        data = {
-            key: {
-                "radioEnable": enable
-            }
-        }
-
-        await self._request("PATCH", f"/eaps/{mac}", json=data)
-
-    async def async_set_ssid_enable(self, mac: str, existing_overrides: list[Dict[str, Any]], wlan_id: str, ssid: str, enabled: bool) -> None:
-
-        for ssid_override in existing_overrides:
-            if ssid_override["globalSsid"] == ssid:
-                ssid_override["ssidEnable"] = enabled
-                break
-
-        await self._request("PATCH", f"/eaps/{mac}", json={"wlanId": wlan_id, "ssidOverrides": existing_overrides})
+LOGGER = logging.getLogger(__name__)
 
 
 class Device(APIItem):
     """Defines all the properties for a Device"""
 
-    @property
-    def _details_end_point(self) -> str:
-        if self.type == "ap":
-            return AP_DETAILS_END_POINT
-        return None
-    
     @property
     def type(self) -> str:
         return self._raw.get("type", "")
@@ -84,6 +48,14 @@ class Device(APIItem):
     @property
     def firmware_upgrade(self) -> bool:
         return self._raw.get("needUpgrade", False)
+
+    @property
+    def firmware_latest(self) -> str:
+        return self._details.get("lastFwVer", "")
+
+    @property
+    def firmware_latest_rn(self) -> str:
+        return self._details.get("fwReleaseLog", "")
 
     @property
     def status(self) -> int:
@@ -142,7 +114,7 @@ class Device(APIItem):
     @property
     def clients_6ghz(self) -> int:
         return int(self._raw.get("clientNum6g", 0))
-    
+
     @property
     def guests(self) -> int:
         return int(self._raw.get("guestNum", 0))
@@ -259,3 +231,56 @@ class Device(APIItem):
         name = self.name or self.mac
         type = self.type or '!'
         return f"<Device:{type} {name}:{self.mac} {self._raw}>"
+
+
+class Devices(APIItems):
+
+    _has_details = True
+
+    def __init__(self, request):
+        super().__init__(request, END_POINT, "mac", Device)
+
+    async def async_set_radio_enable(self, mac: str, radio: int, enable: bool) -> None:
+
+        key = ""
+
+        if radio == 2:
+            key = "radioSetting2g"
+        elif radio == 5:
+            key = "radioSetting5g"
+        elif radio == 6:
+            key = "radioSetting6g"
+
+        data = {
+            key: {
+                "radioEnable": enable
+            }
+        }
+
+        await self._request("PATCH", f"/eaps/{mac}", json=data)
+
+    async def async_set_ssid_enable(self, mac: str, existing_overrides: list[Dict[str, Any]], wlan_id: str, ssid: str, enabled: bool) -> None:
+
+        for ssid_override in existing_overrides:
+            if ssid_override["globalSsid"] == ssid:
+                ssid_override["ssidEnable"] = enabled
+                break
+
+        await self._request("PATCH", f"/eaps/{mac}", json={"wlanId": wlan_id, "ssidOverrides": existing_overrides})
+
+    async def trigger_update(self, mac: str) -> None:
+        await self._request("GET", f"/cmd/devices/{mac}/onlineUpgrade")
+
+    async def update_details(self, key: str, item: Device) -> None:
+
+        if item.type == "ap":
+            ap_details = await self._request("GET", AP_DETAILS_END_POINT.replace("%key", key))
+            for prop in AP_DETAILS_PROPERTIES:
+                if prop in ap_details:
+                    item._details[prop] = ap_details[prop]
+
+        if item.firmware_upgrade:
+            firmware_details = await self._request("GET", FIRMWARE_END_POINT.replace("%key", key))
+            for prop in FIRMWARE_PROPERTIES:
+                if prop in firmware_details:
+                    item._details[prop] = firmware_details[prop]

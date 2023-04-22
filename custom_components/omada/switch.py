@@ -72,7 +72,7 @@ class OmadaSwitchEntityDescription(
     SwitchEntityDescription,
     OmadaSwitchEntityDescriptionMixin
 ):
-    """Omada Sensor Entity Description"""
+    """Omada Switch Entity Description"""
 
 
 CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {

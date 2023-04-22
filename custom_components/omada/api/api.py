@@ -1,19 +1,30 @@
 import logging
 
 from typing import Any, Callable, Dict
+from abc import abstractmethod
 
 from .errors import (OmadaApiException)
 
 LOGGER = logging.getLogger(__name__)
 
+class APIItem:
+    def __init__(self, raw):
+        self._raw: Dict[str, Any] = raw
+        self._details: Dict[str, Any] = {}
+
+    def update(self, raw=None):
+        if raw:
+            self._raw = raw
+        else:
+            return
+
 
 class APIItems:
 
     _has_details = False
-    _details_properties = None
 
     def __init__(self, request: Callable[[str, str, list[Dict[str, str]]], Any], end_point: str, key: str,
-                 item_cls: str, data_key: str = "", details_end_point: str | None = None, details_properties: list[str] | None = None):
+                 item_cls: str, data_key: str = ""):
         self._request: Callable[[
             str, str, list[Dict[str, str]]], Any] = request
         self._end_point: str = end_point
@@ -40,9 +51,11 @@ class APIItems:
 
         if update_details and self._has_details:
             for key, item in self.items.items():
-                if item._details_end_point is not None:
-                    response = await self._request("GET", item._details_end_point.replace('%key', key))
-                    self._process_raw_detail(response, key)
+                await self.update_details(key, item)         
+
+    @abstractmethod
+    def update_details(self, key: str, item: APIItem) -> None:
+        pass
 
     def _process_raw(self, raw):
         present_items = set()
@@ -65,23 +78,6 @@ class APIItems:
         for key in removed_items:
             self.items.pop(key)
 
-    def _process_raw_detail(self, raw: dict, key: str):
-        if key not in self.items:
-            LOGGER.warning(
-                "Asked to process details for %s key %s but does not exist in items.")
-        else:
-            details: dict = None
-
-            if self._details_properties is not None:
-                details = {}
-                for property in self._details_properties:
-                    if property in raw:
-                        details[property] = raw[property]
-            else:
-                details = raw
-
-            self.items[key]._details = details
-
     def __getitem__(self, obj_id):
         try:
             return self.items[obj_id]
@@ -90,17 +86,3 @@ class APIItems:
 
     def __iter__(self):
         return self.items.__iter__()
-
-
-class APIItem:
-    _details_end_point = None
-
-    def __init__(self, raw):
-        self._raw: Dict[str, Any] = raw
-        self._details: Dict[str, Any] = {}
-
-    def update(self, raw=None):
-        if raw:
-            self._raw = raw
-        else:
-            return
