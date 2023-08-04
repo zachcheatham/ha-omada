@@ -94,12 +94,12 @@ class Client(APIItem):
         return self._raw.get("channel")
 
     @property
-    def rx_rate(self) -> int | None:
-        return self._raw.get("rxRate")
+    def rx_rate(self) -> int:
+        return self._raw.get("rxRate", 0)
 
     @property
-    def tx_rate(self) -> int | None:
-        return self._raw.get("txRate")
+    def tx_rate(self) -> int:
+        return self._raw.get("txRate", 0)
 
     @property
     def power_save(self) -> bool:
