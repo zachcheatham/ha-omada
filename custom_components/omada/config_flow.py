@@ -167,9 +167,8 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
         ssid_filter = {ssid: ssid for ssid in sorted(self.controller.api.ssids)}
 
         # Remove selected options that may not exist anymore.
-        ssid_filter_default = filter(
-            lambda i: i in ssid_filter, self.controller.option_ssid_filter
-        )
+        ssid_filter_default = list(filter(
+            lambda i: i in ssid_filter, self.controller.option_ssid_filter))
 
         return self.async_show_form(
             step_id="client_options",
