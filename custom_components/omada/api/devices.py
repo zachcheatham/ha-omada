@@ -269,7 +269,7 @@ class Devices(APIItems):
         await self._request("PATCH", f"/eaps/{mac}", json={"wlanId": wlan_id, "ssidOverrides": existing_overrides})
 
     async def trigger_update(self, mac: str) -> None:
-        await self._request("GET", f"/cmd/devices/{mac}/onlineUpgrade")
+        await self._request("POST", f"/cmd/devices/{mac}/onlineUpgrade", json={"mac": mac})
 
     async def update_details(self, key: str, item: Device) -> None:
 
