@@ -141,6 +141,8 @@ class OmadaController:
 
         for _ in range(2):
             try:
+                await self.api.update_status()
+
                 if self.option_track_devices:
                     await self.api.devices.update(update_details=update_all)
 
@@ -196,13 +198,13 @@ class OmadaController:
 
         for description in descriptions.values():
 
-            if not description.domain in self.entities:
+            if description.domain not in self.entities:
                 self.entities[description.domain] = {}
-            if not description.key in self.entities[description.domain]:
+            if description.key not in self.entities[description.domain]:
                 self.entities[description.domain][description.key] = set()
 
             for mac in macs:
-                if (not mac in self.entities[description.domain][description.key] and
+                if (mac not in self.entities[description.domain][description.key] and
                         description.allowed_fn(self, mac) and description.supported_fn(self, mac)):
 
                     entity = platform_entity(mac, self, description)
@@ -305,5 +307,5 @@ async def get_api_controller(hass, url, username, password, site, verify_ssl):
             "Connected to Omada at %s but unauthorized: %s", url, err)
         raise err
     except OmadaApiException as err:
-        LOGGER.warning("Unable to connect to Omada at %s: %s", url, err)
+        LOGGER.warning("Unable to connect to Omada at %s: %s: %s", url, type(err).__name__ ,err)
         raise err

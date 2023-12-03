@@ -21,6 +21,10 @@ from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_in
 
 LOGGER = logging.getLogger(__name__)
 
+
+async def update_device_fn(controller: Controller, mac: str) -> None:
+    await controller.devices.trigger_update(mac)
+
 @dataclass
 class OmadaUpdateEntityDescriptionMixin():
     version_fn: Callable[[Controller, str], str]
@@ -56,7 +60,7 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaUpdateEntityDescription] = {
         latest_version_fn=lambda controller, mac: controller.devices[mac].firmware_upgrade and controller.devices[mac].firmware_latest or controller.devices[mac].firmware,
         latest_version_rn_fn=lambda controller, mac: controller.devices[mac].firmware_upgrade and controller.devices[mac].firmware_latest_rn or None,
         updating_fn=lambda controller, mac: controller.devices[mac].status == 12,
-        update_fn=lambda controller, mac: controller.devices.trigger_update(mac)
+        update_fn=update_device_fn
     )
 }
 
@@ -116,7 +120,7 @@ class OmadaUpdateEntity(OmadaEntity, UpdateEntity):
             await super().async_update()
 
     async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
-        self.entity_description.update_fn(self._mac)
+        await self.entity_description.update_fn(self.controller.api, self._mac)
 
     def release_notes(self) -> str | None:
         return self.entity_description.latest_version_rn_fn(self.controller.api, self._mac)

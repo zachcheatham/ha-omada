@@ -1,6 +1,7 @@
 import logging
 import async_timeout
 
+from dataclasses import dataclass
 from asyncio.exceptions import TimeoutError
 
 from aiohttp import client_exceptions
@@ -8,12 +9,18 @@ from aiohttp.client import ClientSession
 
 from .clients import Clients
 from .devices import Devices
-from .errors import (HttpErrorCode, InvalidURLError, SSLError, UnknownSite, raise_response_error, RequestError, RequestTimeout)
+from .errors import (OmadaApiException, HttpErrorCode, InvalidURLError, SSLError, UnknownSite, raise_response_error, RequestError, RequestTimeout)
 from .known_clients import KnownClients
 
 LOGGER = logging.getLogger(__name__)
 
 API_PATH = "/api/v2"
+
+
+@dataclass
+class RFPlanningState:
+    status: int
+    schedule_enable: bool
 
 
 class Controller:
@@ -32,17 +39,18 @@ class Controller:
         self.role_type = 0
         self.name = None
         self.version = None
+        self.controller_id = None
         self._username = username
         self._password = password
         self._session = websession
         self._ssl_context = ssl_context
-        self._controller_id = None
         self._site_id = None
         self._token = None
         self.clients = Clients(self._site_request)
         self.devices = Devices(self._site_request)
         self.known_clients = KnownClients(self._site_request)
         self.ssids = set()
+        self.rf_planning = None
 
     async def login(self) -> None:
         """Call to obtain login token, controller id, and site id."""
@@ -68,7 +76,7 @@ class Controller:
         response = await self._request("get", f"{self.url}/api/info")
         self.version = response["controllerVer"]
         if self.version >= "5.0.0":
-            self._controller_id = response["omadacId"]
+            self.controller_id = response["omadacId"]
 
     async def _update_site_id(self):
         """Obtain site id for specified site name. Required in v5.0.0+"""
@@ -89,12 +97,23 @@ class Controller:
             raise UnknownSite(f"Unknown site '{self.site}'")
 
     async def update_status(self):
-        """Update controller name."""
+        """Update controller information."""
 
         response = await self._controller_request(
             "get", "/maintenance/controllerStatus", private=True
-        )
+)
         self.name = response["name"]
+
+        try:
+            response = await self._site_request("get", "/rfPlanning")
+            status_response = await self._site_request("get", "/rfPlanning/result")
+
+            self.rf_planning = RFPlanningState(
+                status=status_response.get("status", None),
+                schedule_enable=response.get("scheduleEnable", None))
+        except OmadaApiException as err:
+            self.rf_planning = None
+            LOGGER.warn(f"Unable to get rfPlanning status: {err}")
 
     async def update_ssids(self):
         """Retrieve the list of avaiable SSIDs within a site."""
@@ -128,6 +147,10 @@ class Controller:
                 for ssid in ssid_response["data"]:
                     self.ssids.add(ssid["name"])
 
+    async def set_rf_planning_enable(self, enabled: bool):
+        await self._site_request("PUT", "/rfPlanning/schedule",
+                                        json={"scheduleEnable": enabled})
+
     async def _site_request(self, method, end_point, params=None, json=None):
         """Perform a request specific to a site."""
 
@@ -151,7 +174,7 @@ class Controller:
 
         url = None
         if self.version >= "5.0.0":
-            url = f"{self.url}/{self._controller_id}{API_PATH}{end_point}"
+            url = f"{self.url}/{self.controller_id}{API_PATH}{end_point}"
         else:
             url = f"{self.url}{API_PATH}{end_point}"
 
@@ -209,15 +232,15 @@ class Controller:
                             return response["result"]
                         return response
                     else:
-                        raise RequestError("Received non-json response!")
+                        raise RequestError(url, "Received non-json response!")
         except TimeoutError:
             raise RequestTimeout(url)
         except client_exceptions.ClientConnectorCertificateError as err:
             raise SSLError(f"Error connecting to {url}: {err}")
-        except client_exceptions.InvalidURL as err:
-            raise InvalidURLError
+        except client_exceptions.InvalidURL:
+            raise InvalidURLError(url, "Invalid URL")
         except client_exceptions.ClientError as err:
-            raise RequestError(f"Error connecting to {url}: {err}") from None
+            raise RequestError(url, err) from None
 
     def _raiseOnResponseError(self, url, response):
         if not isinstance(response, dict):

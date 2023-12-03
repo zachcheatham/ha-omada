@@ -728,7 +728,7 @@ class OmadaSensorEntity(OmadaEntity, SensorEntity):
     def update_value(self, force_update=False) -> bool:
         """Update value. Returns true if state should update."""
         prev_value = None
-        if self.entity_description.value_format_fn != None:
+        if self.entity_description.value_format_fn is not None:
             prev_value = self._internal_value
         else:
             prev_value = self._attr_native_value

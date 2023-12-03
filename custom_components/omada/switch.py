@@ -19,10 +19,18 @@ from .const import DOMAIN as OMADA_DOMAIN
 from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn,
                            client_device_info_fn, unique_id_fn)
 
+from .omada_controller_entity import (
+    OmadaControllerEntity,
+    OmadaControllerEntityDescription,
+    device_info_fn as controller_device_info_fn,
+    unique_id_fn as controller_unique_id_fn,
+)
+
 BLOCK_SWITCH = "block"
 RADIO_2G_SWITCH = "2ghz_radio"
 RADIO_5G_SWITCH = "5ghz_radio"
 RADIO_6G_SWITCH = "6ghz_radio"
+AI_OPTIMIZATION_SWITCH = "ai_optimization"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,6 +41,14 @@ def ssid_enabled_fn(api: Controller, mac: str, ssid: str):
             return ssid_override.get("ssidEnable", False)
 
     return False
+
+
+def rf_planning_schedule_enabled_fn(api: Controller):
+    rf_planning_state = api.rf_planning
+    if rf_planning_state is not None:
+        return rf_planning_state.schedule_enable
+    else:
+        return None
 
 
 @callback
@@ -60,6 +76,11 @@ async def enable_ssid_fn(api: Controller, mac: str, enabled: bool, ssid: str) ->
     await api.devices.async_set_ssid_enable(mac, api.devices[mac].ssid_overrides, api.devices[mac].wlan_id, ssid, enabled)
 
 
+@callback
+async def enable_rf_planning_schedule_fn(api: Controller, enabled: bool) -> None:
+    await api.set_rf_planning_enable(enabled)
+
+
 @dataclass
 class OmadaSwitchEntityDescriptionMixin():
     control_fn: Callable[[Controller, str, bool], Coroutine[Any, Any, None]]
@@ -73,6 +94,21 @@ class OmadaSwitchEntityDescription(
     OmadaSwitchEntityDescriptionMixin
 ):
     """Omada Switch Entity Description"""
+
+
+@dataclass
+class OmadaControllerSwitchEntityDescriptionMixin():
+    control_fn: Callable[[Controller, str, bool], Coroutine[Any, Any, None]]
+    is_on_fn: Callable[[Controller, str], bool]
+
+
+@dataclass
+class OmadaControllerSwitchEntityDescription(
+    OmadaControllerEntityDescription,
+    SwitchEntityDescription,
+    OmadaControllerSwitchEntityDescriptionMixin
+):
+    """Omada Controller Switch Entity Description"""
 
 
 CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
@@ -150,9 +186,33 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSwitchEntityDescription] = {
     )
 }
 
+CONTROLLER_ENTITY_DESCRIPTIONS: dict[
+    str, OmadaControllerSwitchEntityDescription
+] = {
+    # AI_OPTIMIZATION_SWITCH: OmadaControllerSwitchEntityDescription(
+    #     domain=DOMAIN,
+    #     key=AI_OPTIMIZATION_SWITCH,
+    #     device_class=SwitchDeviceClass.SWITCH,
+    #     entity_category=EntityCategory.CONFIG,
+    #     has_entity_name=True,
+    #     icon="mdi:chart-box",
+    #     available_fn=lambda controller: controller.available,
+    #     device_info_fn=controller_device_info_fn,
+    #     name_fn=lambda *_: "WLAN Optimization Schedule",
+    #     unique_id_fn=controller_unique_id_fn,
+    #     is_on_fn=rf_planning_schedule_enabled_fn,
+    #     control_fn=enable_rf_planning_schedule_fn
+    # )
+}
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     controller: OmadaController = hass.data[OMADA_DOMAIN][config_entry.entry_id]
+
+    # Set up Controller Entities
+    for description in CONTROLLER_ENTITY_DESCRIPTIONS.values():
+        entity = OmadaControllerSwitchEntity(controller, description)
+        async_add_entities([entity])
 
     @callback
     def items_added() -> None:
@@ -246,5 +306,30 @@ class OmadaSwitchEntity(OmadaEntity, SwitchEntity):
     async def async_update(self):
 
         if ((is_on := self.entity_description.is_on_fn(self.controller.api, self._mac)) != self.is_on):
+            self._attr_is_on = is_on
+            await super().async_update()
+
+
+class OmadaControllerSwitchEntity(OmadaControllerEntity, SwitchEntity):
+    controller: OmadaController
+    entity_description: OmadaControllerSwitchEntityDescription
+
+    def __init__(self, controller: OmadaController, description: OmadaControllerEntityDescription) -> None:
+        super().__init__(controller, description)
+        self._attr_is_on = self.entity_description.is_on_fn(controller.api)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.entity_description.control_fn(self.controller.api, True)
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.entity_description.control_fn(self.controller.api, False)
+        self._attr_is_on = False
+        self.async_write_ha_state()
+
+    @callback
+    async def async_update(self):
+        if ((is_on := self.entity_description.is_on_fn(self.controller.api)) != self.is_on):
             self._attr_is_on = is_on
             await super().async_update()

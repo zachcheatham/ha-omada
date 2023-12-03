@@ -2,13 +2,6 @@ class OmadaApiException(Exception):
     pass
 
 
-class HttpErrorCode(OmadaApiException):
-    def __init__(self, *args: object, url: str, code: str, msg: str = "") -> None:
-        self.code = code
-        self.msg = msg
-        super().__init__(f"Call to {url} received status code {code}")
-
-
 class LoginRequired(OmadaApiException):
     pass
 
@@ -18,14 +11,32 @@ class LoginFailed(OmadaApiException):
 
 
 class RequestError(OmadaApiException):
-    pass
+    def __init__(self, url: str, msg: str) -> None:
+        super().__init__(f"Call to {url} failed: {msg}")
 
-class RequestTimeout(OmadaApiException):
+
+class HttpErrorCode(RequestError):
+    def __init__(self, *args: object, url: str, code: str, msg: str = "") -> None:
+        self.code = code
+        self.msg = msg
+        super().__init__(url, f"Received status code {code}")
+
+
+class APIErrorCode(RequestError):
+    def __init__(self, *args: object, url: str, code: str, msg: str = "") -> None:
+        self.code = code
+        self.msg = msg
+        super().__init__(url, f"API Error {code}: {msg}")
+
+
+class RequestTimeout(RequestError):
     def __init__(self, url: str) -> None:
-        super().__init__(f"Call to {url} timed out.")
+        super().__init__(url, "Timed out.")
+
 
 class InvalidURLError(RequestError):
     pass
+
 
 class SSLError(RequestError):
     pass
@@ -52,7 +63,7 @@ API_ERRORS = {
 
 def raise_response_error(url, response):
     exc = API_ERRORS.get(response["errorCode"])
-    if exc != None:
-        raise exc(response["msg"])
+    if exc is not None:
+        raise exc(url, response["msg"])
 
-    raise HttpErrorCode(url=url, code=response["errorCode"], msg=response["msg"])
+    raise APIErrorCode(url=url, code=response["errorCode"], msg=response["msg"])
