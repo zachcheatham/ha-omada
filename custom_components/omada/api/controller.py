@@ -147,6 +147,9 @@ class Controller:
                 for ssid in ssid_response["data"]:
                     self.ssids.add(ssid["name"])
 
+    async def start_rf_planning(self):
+        await self._site_request("POST", "/cmd/rfPlanning/optimization")
+
     async def set_rf_planning_enable(self, enabled: bool):
         await self._site_request("PUT", "/rfPlanning/schedule",
                                         json={"scheduleEnable": enabled})

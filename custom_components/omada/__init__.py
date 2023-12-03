@@ -8,7 +8,7 @@ from .controller import OmadaController
 
 LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["binary_sensor", "device_tracker", "sensor", "switch", "update"]
+PLATFORMS = ["binary_sensor", "button", "device_tracker", "sensor", "switch", "update"]
 
 
 async def async_setup(hass, config):

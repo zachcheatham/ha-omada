@@ -13,7 +13,6 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .controller import OmadaController
-
 from .api.controller import Controller
 from .const import DOMAIN as OMADA_DOMAIN
 from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn,
