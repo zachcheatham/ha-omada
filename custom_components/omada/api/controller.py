@@ -36,7 +36,6 @@ class Controller:
 
         self.url = url
         self.site = site
-        self.role_type = 0
         self.name = None
         self.version = None
         self.controller_id = None
@@ -61,10 +60,9 @@ class Controller:
         auth = {"username": self._username, "password": self._password}
         response = await self._controller_request("post", "/login", json=auth)
 
-        self.role_type = response["roleType"]
         self._token = response["token"]
 
-        LOGGER.info(f"Login successful. Role type {self.role_type}.")
+        LOGGER.info("Login successful.")
 
         # Acquire site id for site name as required for versions 5+
         if self.version >= "5.0.0":
