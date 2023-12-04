@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.5.0
+- Add support for Omada Controller 5.13+
+- Add sensor and trigger for WLAN optimization
+- Fix device upgrades
+
+## 0.4.3
+- Fixes bug causing the configuration flow to break.
+
+## 0.4.2
+- Fix errors related to tx and rx rates on unsupported devices
+- Fix an error when re-configuring the SSID filter after an SSID was removed from Omada.
+
+## 0.4.1
+- Fix issue related to pulling radio state and wifi mode of wired devices.
+- Increase the API request timeout to 30 seconds.
+
+## 0.4.0
+- Added client bandwidth, activity, and uptime sensors.
+- Added client WiFi blocking switches.
+- Added HA devices to associate client entities together.
+- Added device bandwidth, uptime, clients, CPU, and memory sensors.
+- Added AP band utilization sensors.
+- Added AP radio switches
+- Added new integration configuration options for controlling which entity types are loaded.
+- Added new integration configuration to add an additional timeout to device trackers before they are marked Away.
+- Entities will now move to unavailable state when the controller becomes unreachable.
+- Client device tracker attributes now include the mac address, host name, and connected AP name.
+- Client device tracker AP mac addresses are now formatted as 00:00:00:00:00:00
+- Removed site name prefix from access point devices.
+- Remove use of deprecated HA functions.
+
+
 ## 0.3.0
 - Added additional AP and client information and statistics (@ping-localhost)
 
