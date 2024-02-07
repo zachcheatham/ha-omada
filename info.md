@@ -3,13 +3,17 @@ Adds Omada SDN Controller support to Home assistant. This integration requires [
 
 ## Features
 
-- Device tracker for WLAN clients
-- Device and client attributes and sensors.
+- Device tracker for clients.
+- Client and device bandwidth sensors.
+- Client and device statistics sensors.
+- WLAN Radio controls
+- WLAN SSID controls
+- Client blocking toggles.
 - SSID filter.
 
 ## Planned Features
 
-- Additional sensors.
-- Switches for toggling Omada settings.
-- Client filters
-- Support for additional hardware such as switches and routers.
+- Better wired client support (help wanted.)
+- Better switch and router support (help wanted.)
+- Individual client filters.
+- SDN and site controls and statistics.
