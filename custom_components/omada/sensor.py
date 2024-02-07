@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from homeassistant.components.sensor import (DOMAIN, DEVICE_CLASS_TIMESTAMP, SensorEntity,
+from homeassistant.components.sensor import (DOMAIN, SensorDeviceClass, SensorEntity,
                                              SensorEntityDescription)
 from homeassistant.const import UnitOfInformation, UnitOfDataRate, PERCENTAGE
 from homeassistant.core import callback
@@ -315,7 +315,7 @@ CLIENT_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         domain=DOMAIN,
         key=UPTIME_SENSOR,
         entity_category=EntityCategory.DIAGNOSTIC,
-        device_class=DEVICE_CLASS_TIMESTAMP,
+        device_class=SensorDeviceClass.TIMESTAMP,
         has_entity_name=True,
         allowed_fn=lambda controller, mac: (controller.option_client_uptime_sensor and
                                             controller.option_track_clients and
@@ -430,7 +430,7 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         domain=DOMAIN,
         key=UPTIME_SENSOR,
         entity_category=EntityCategory.DIAGNOSTIC,
-        device_class=DEVICE_CLASS_TIMESTAMP,
+        device_class=SensorDeviceClass.TIMESTAMP,
         has_entity_name=True,
         allowed_fn=lambda controller, _: (controller.option_device_statistics_sensors and
                                           controller.option_track_devices),
