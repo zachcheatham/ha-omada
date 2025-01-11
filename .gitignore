@@ -4,6 +4,7 @@ venv/
 .venv/
 .idea/
 .vscode/
+private/
 
 # Files
 pythonenv*

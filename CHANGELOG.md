@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+- Fixes issue related to timeouts in newer versions of HA
+- Fixes issue related to missing IP addresses from the Omada Controlller
+- Fixes regression causing entities to remain after the device was removed from the Omada Controller
+
 ## 0.5.0
 - Add support for Omada Controller 5.13+
 - Add sensor and trigger for WLAN optimization
