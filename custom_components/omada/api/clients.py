@@ -30,6 +30,8 @@ class Clients(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Client, data_key="data")
 
+    async def async_reconnect(self, mac: str) -> None:
+        await self._request("POST", "/cmd/clients/{}/reconnect".format(mac))
 
 class Client(APIItem):
     """Defines all the properties for a Client"""
