@@ -19,6 +19,7 @@ from homeassistant.helpers.entity_registry import async_entries_for_config_entry
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api.controller import Controller
+from .api.clients import Client, CONNECT_TYPE_WIRELESS_GUEST, CONNECT_TYPE_WIRELESS_USER, CONNECT_TYPE_WIRED_USER
 from .api.errors import (LoginFailed, OmadaApiException,
                          OperationForbidden, RequestError, LoginRequired, UnknownSite)
 from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT,
@@ -197,7 +198,24 @@ class OmadaController:
 
     def is_client_allowed(self, client_mac: str) -> bool:
         """Return whether a client can be included due to the ssid filter settings"""
-        return not self.option_ssid_filter or client_mac not in self.api.clients or self.api.clients[client_mac].ssid in self.option_ssid_filter
+        LOGGER.debug(f"is_client_allowed: {client_mac} {self.option_ssid_filter}")
+
+        if client_mac not in self.api.clients:
+            LOGGER.debug(f"is_client_allowed: client {client_mac} not in api clients")
+            return False
+
+        client: Client = self.api.clients[client_mac]
+        allowed = False
+
+        if client.connect_type == CONNECT_TYPE_WIRELESS_GUEST or client.connect_type == CONNECT_TYPE_WIRELESS_USER:
+            LOGGER.debug(f"is_client_allowed: wireless client {client_mac} {client.ssid}")
+            allowed = not self.option_ssid_filter or client.ssid in self.option_ssid_filter
+        elif client.connect_type == CONNECT_TYPE_WIRED_USER:
+            LOGGER.debug(f"is_client_allowed: wired client {client_mac}")
+            allowed = True
+
+        LOGGER.debug(f"is_client_allowed: {client_mac} {allowed}")
+        return allowed
 
     @callback
     def register_platform_entities(

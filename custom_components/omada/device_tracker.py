@@ -48,7 +48,13 @@ CONNECTED_WIRED_CLIENT_ATTRIBUTES = (
     "ip",
     "mac",
     "wireless",
-    "guest"
+    "guest",
+    "switch_port",
+    "switch_mac",
+    "switch_name",
+    "standard_port",
+    "vlan_id",
+    "network_name"
 )
 
 DISCONNECTED_CLIENT_ATTRIBUTES = (

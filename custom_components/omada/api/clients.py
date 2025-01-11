@@ -10,7 +10,9 @@ WIFI_MODE = [
     "11ng",
     "11ac",
     "11axa",
-    "11axg"
+    "11axg",
+    "11beg",
+    "11bea"
 ]
 
 RADIO = [
@@ -20,6 +22,9 @@ RADIO = [
     "6ghz"
 ]
 
+CONNECT_TYPE_WIRELESS_GUEST = 0
+CONNECT_TYPE_WIRELESS_USER = 1
+CONNECT_TYPE_WIRED_USER = 2
 
 class Clients(APIItems):
     def __init__(self, request):
@@ -75,7 +80,8 @@ class Client(APIItem):
 
     @property
     def wifi_mode(self) -> str:
-        return WIFI_MODE[self._raw.get("wifiMode", 0)]
+        mode = self._raw.get("wifiMode", 0)
+        return WIFI_MODE[mode] if 0 <= mode < len(WIFI_MODE) else "Unknown"
 
     @property
     def ap_name(self) -> str | None:
