@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+- Added wired client support (Thanks @jonathanhoskin)
+- Added latest WiFi standards (Thanks @jonathanhoskin)
+
 ## 0.6.1
 - Fixes issue related to timeouts in newer versions of HA
 - Fixes issue related to missing IP addresses from the Omada Controlller
