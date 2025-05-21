@@ -111,7 +111,7 @@ def client_tx_value_fn(controller: OmadaController, mac: str) -> float:
         return round(controller.api.clients[mac].tx_rate / 1048576, 3)
     else:
         return 0
-    
+
 @callback
 def client_rssi_value_fn(controller: OmadaController, mac: str) -> float | None:
     """Retrieve client current RSSI"""
@@ -119,7 +119,7 @@ def client_rssi_value_fn(controller: OmadaController, mac: str) -> float | None:
         return round(controller.api.clients[mac].rssi)
     else:
         return None
-    
+
 @callback
 def client_snr_value_fn(controller: OmadaController, mac: str) -> float | None:
     """Retrieve client current SNR"""
@@ -186,7 +186,7 @@ def device_memory_value_fn(controller: OmadaController, mac: str) -> int:
 @callback
 def device_poe_remaining_value_fn(controller: OmadaController, mac: str) -> int:
     """Retrieve device current remaining poe power"""
-    return controller.api.devices[mac].poe_remaining
+    return round(controller.api.devices[mac].poe_remaining, 2)
 
 
 @callback
