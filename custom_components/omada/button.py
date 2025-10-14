@@ -18,7 +18,7 @@ from .controller import OmadaController
 from .api.controller import Controller
 
 from .const import DOMAIN as OMADA_DOMAIN
-from .omada_entity import (OmadaEntity, OmadaEntityDescription, client_device_info_fn, unique_id_fn)
+from .omada_entity import (OmadaEntity, OmadaEntityDescription, device_device_info_fn, client_device_info_fn, unique_id_fn)
 
 from .omada_controller_entity import (
     OmadaControllerEntity,
@@ -28,6 +28,7 @@ from .omada_controller_entity import (
 )
 
 AI_OPTIMIZATION_BUTTON = "ai_optimization"
+REBOOT_BUTTON = "reboot"
 RECONNECT_BUTTON = "reconnect"
 
 LOGGER = logging.getLogger(__name__)
@@ -35,6 +36,10 @@ LOGGER = logging.getLogger(__name__)
 @callback
 async def start_rf_planning_fn(api: Controller) -> None:
     await api.start_rf_planning()
+
+@callback
+async def reboot_device_fn(api: Controller, mac: str) -> None:
+    await api.devices.trigger_reboot(mac)
 
 @callback
 async def reconnect_client_fn(api: Controller, mac: str) -> None:
@@ -54,6 +59,19 @@ class OmadaButtonEntityDescription(
 ):
     """Omada Button Entity Description"""
 
+
+@dataclass
+class OmadaDeviceButtonEntityDescriptionMixin:
+    activate_fn: Callable[[OmadaController], None]
+
+
+@dataclass
+class OmadaDeviceButtonEntityDescription(
+    ButtonEntityDescription,
+    OmadaEntityDescription,
+    OmadaDeviceButtonEntityDescriptionMixin,
+):
+    """Omada Device Button Entity Description"""
 
 @dataclass
 class OmadaControllerButtonEntityDescriptionMixin:
@@ -85,6 +103,25 @@ CONTROLLER_ENTITY_DESCRIPTIONS: dict[
         name_fn=lambda *_: "Start WLAN Optimization",
         unique_id_fn=controller_unique_id_fn,
         activate_fn=start_rf_planning_fn
+    )
+}
+
+DEVICE_ENTITY_DESCRIPTIONS: dict[
+    str, OmadaDeviceButtonEntityDescription
+] = {
+    REBOOT_BUTTON: OmadaDeviceButtonEntityDescription(
+        domain=DOMAIN,
+        key=REBOOT_BUTTON,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        has_entity_name=True,
+        icon="mdi:restart",
+        allowed_fn=lambda controller, mac: controller.option_track_devices,
+        supported_fn=lambda controller, mac: True,
+        available_fn=lambda controller, mac: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Reboot",
+        unique_id_fn=unique_id_fn,
+        activate_fn=reboot_device_fn
     )
 }
 
@@ -122,6 +159,12 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 OmadaButtonEntity,
                 CLIENT_ENTITY_DESCRIPTIONS,
                 async_add_entities)
+        if controller.option_track_devices:
+            controller.register_platform_entities(
+                controller.api.devices,
+                OmadaDeviceButtonEntity,
+                DEVICE_ENTITY_DESCRIPTIONS,
+                async_add_entities)
 
     for signal in (controller.signal_update, controller.signal_options_update):
         config_entry.async_on_unload(
@@ -147,6 +190,20 @@ class OmadaButtonEntity(OmadaEntity, ButtonEntity):
     entity_description: OmadaControllerButtonEntityDescription
 
     def __init__(self, mac: str, controller: OmadaController, description: OmadaEntityDescription) -> None:
+        super().__init__(mac, controller, description)
+
+    async def async_press(self) -> None:
+        await self.entity_description.activate_fn(self.controller.api, self._mac)
+
+
+class OmadaDeviceButtonEntity(OmadaEntity, ButtonEntity):
+
+    entity_description: OmadaControllerButtonEntityDescription
+
+    def __init__(
+            self, mac: str, controller: OmadaController, description: OmadaDeviceEntityDescription
+    ) -> None:
+
         super().__init__(mac, controller, description)
 
     async def async_press(self) -> None:
