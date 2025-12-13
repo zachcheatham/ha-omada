@@ -128,13 +128,14 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
 class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        # config_entries.OptionsFlow already defines config_entry as a read-only property, so we need our own
+        self._config_entry = config_entry
         self.options = dict(config_entry.options)
         self.controller = None
 
     async def async_step_init(self, user_input=None):
         self.controller: OmadaController = self.hass.data[OMADA_DOMAIN][
-            self.config_entry.entry_id
+            self._config_entry.entry_id
         ]
 
         return await self.async_step_device_tracker()
