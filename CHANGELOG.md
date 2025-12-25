@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+- Added device reboot button (Thanks @RvRijsselt)
+- Fixed OptionsFlow incompatibility with Home Assistant 2025.12
+
 ## 0.7.0
 - Added wired client support (Thanks @jonathanhoskin)
 - Added latest WiFi standards (Thanks @jonathanhoskin)
