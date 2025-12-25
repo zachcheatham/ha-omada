@@ -128,11 +128,13 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
 class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
+        self.options = None
         self.controller = None
 
     async def async_step_init(self, user_input=None):
+        if not self.options:
+            self.options = dict(self.config_entry.options)
+
         self.controller: OmadaController = self.hass.data[OMADA_DOMAIN][
             self.config_entry.entry_id
         ]
