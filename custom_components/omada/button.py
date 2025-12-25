@@ -115,7 +115,8 @@ DEVICE_ENTITY_DESCRIPTIONS: dict[
         entity_category=EntityCategory.DIAGNOSTIC,
         has_entity_name=True,
         icon="mdi:restart",
-        allowed_fn=lambda controller, mac: controller.option_track_devices,
+        allowed_fn=lambda controller, _: (controller.option_device_controls and
+                                          controller.option_track_devices),
         supported_fn=lambda controller, mac: True,
         available_fn=lambda controller, mac: controller.available,
         device_info_fn=device_device_info_fn,
@@ -201,7 +202,7 @@ class OmadaDeviceButtonEntity(OmadaEntity, ButtonEntity):
     entity_description: OmadaControllerButtonEntityDescription
 
     def __init__(
-            self, mac: str, controller: OmadaController, description: OmadaDeviceEntityDescription
+            self, mac: str, controller: OmadaController, description: OmadaDeviceButtonEntityDescription
     ) -> None:
 
         super().__init__(mac, controller, description)
