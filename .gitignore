@@ -4,6 +4,7 @@ venv/
 .venv/
 .idea/
 .vscode/
+.venv/
 private/
 
 # Files

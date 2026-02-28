@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import Any
+
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry, ConfigFlowResult
 from homeassistant.const import CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_VERIFY_SSL
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -45,14 +50,18 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry) -> OmadaOptionsFlowHandler:
         return OmadaOptionsFlowHandler(config_entry)
 
-    def __init__(self):
-        self.config = {}
+    def __init__(self) -> None:
+        self.config: dict[str, Any] = {}
 
     @callback
-    def _show_setup_form(self, user_input=None, errors=None):
+    def _show_setup_form(
+        self,
+        user_input: dict[str, Any] | None = None,
+        errors: dict[str, str] | None = None,
+    ) -> ConfigFlowResult:
         if user_input is None:
             user_input = {}
 
@@ -76,7 +85,7 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
             errors=errors or {},
         )
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors = {}
 
         if user_input is not None:
@@ -125,13 +134,83 @@ class OmadaFlowHandler(config_entries.ConfigFlow, domain=OMADA_DOMAIN):
         else:
             return self._show_setup_form(user_input, errors)
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle reconfiguration of an existing entry."""
+        errors = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            user_input[CONF_URL] = user_input[CONF_URL].strip("/")
+
+            try:
+                controller = await get_api_controller(
+                    self.hass,
+                    user_input[CONF_URL],
+                    user_input[CONF_USERNAME],
+                    user_input[CONF_PASSWORD],
+                    30,
+                    user_input[CONF_SITE],
+                    user_input[CONF_VERIFY_SSL],
+                )
+
+                # Unload before updating the entry to avoid async_update_entry
+                # firing a reload listener that races with our manual reload.
+                await self.hass.config_entries.async_unload(reconfigure_entry.entry_id)
+                self.hass.config_entries.async_update_entry(
+                    reconfigure_entry,
+                    title=f"{controller.name}: {controller.site}",
+                    data=user_input,
+                )
+                await self.hass.config_entries.async_setup(reconfigure_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+
+            except (LoginFailed, LoginRequired):
+                errors["base"] = "faulty_credentials"
+            except InvalidURLError:
+                errors["base"] = "invalid_url"
+            except SSLError:
+                errors["base"] = "ssl_error"
+            except UnknownSite:
+                errors["base"] = "unknown_site"
+            except UnsupportedVersion:
+                errors["base"] = "unsupported_version"
+            except RequestError:
+                errors["base"] = "service_unavailable"
+            except OmadaApiException:
+                errors["base"] = "api_error"
+
+        # Pre-fill form with existing config entry data
+        current_data = reconfigure_entry.data
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_URL, default=current_data.get(CONF_URL, "")
+                    ): str,
+                    vol.Optional(
+                        CONF_SITE, default=current_data.get(CONF_SITE, "Default")
+                    ): str,
+                    vol.Required(
+                        CONF_USERNAME, default=current_data.get(CONF_USERNAME, "")
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                    vol.Optional(
+                        CONF_VERIFY_SSL, default=current_data.get(CONF_VERIFY_SSL, True)
+                    ): bool,
+                }
+            ),
+            errors=errors,
+        )
+
 
 class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry):
-        self.options = None
-        self.controller = None
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        self.options: dict[str, Any] | None = None
+        self.controller: OmadaController | None = None
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if not self.options:
             self.options = dict(self.config_entry.options)
 
@@ -141,7 +220,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
 
         return await self.async_step_device_tracker()
 
-    async def async_step_device_tracker(self, user_input=None):
+    async def async_step_device_tracker(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             self.options.update(user_input)
             if self.options[CONF_TRACK_CLIENTS]:
@@ -182,7 +261,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
             last_step=False,
         )
 
-    async def async_step_client_options(self, user_input=None):
+    async def async_step_client_options(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             self.options.update(user_input)
             if self.options[CONF_TRACK_DEVICES]:
@@ -224,7 +303,7 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
             last_step=False,
         )
 
-    async def async_step_device_options(self, user_input=None):
+    async def async_step_device_options(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             self.options.update(user_input)
             return await self._update_options()
@@ -258,5 +337,5 @@ class OmadaOptionsFlowHandler(config_entries.OptionsFlow):
             last_step=True,
         )
 
-    async def _update_options(self):
+    async def _update_options(self) -> ConfigFlowResult:
         return self.async_create_entry(title="", data=self.options)

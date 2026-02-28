@@ -106,6 +106,7 @@ After successful setup, you can further customize the integration's behavior:
 
 This integration is tested and developed against various Omada Controller versions. Generally, it supports:
 
+* Omada Controller v6.x
 * Omada Controller v5.x (including the latest 5.13.x versions).
 
 Please note that TP-Link may introduce API changes in new controller versions. If you encounter issues, check the [CHANGELOG.md](CHANGELOG.md) or open an issue.

@@ -73,7 +73,7 @@ DEVICE_ATTRIBUTES = [
     "status_category",
     "mesh",
     "supports_5ghz",
-    "supports_6ghz"
+    "supports_6ghz",
     "radio_mode_2ghz",
     "radio_mode_5ghz",
     "radio_mode_6ghz",
@@ -206,7 +206,6 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaDeviceTrackerEntityDescription] = {
         extra_attributes_fn=device_attributes_fn
     )
 }
-
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):

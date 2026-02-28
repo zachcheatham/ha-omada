@@ -3,15 +3,12 @@ import logging
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, PLATFORMS
 from .controller import OmadaController
 
 LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["binary_sensor", "button", "device_tracker", "sensor", "switch", "update"]
-
-
-async def async_setup(hass, config):
+async def async_setup(hass, config) -> bool:
     conf = config.get(DOMAIN)
     if conf is None:
         return True
@@ -27,7 +24,7 @@ async def async_setup(hass, config):
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     omada_controller = OmadaController(hass, entry)
     await omada_controller.async_setup()
 
@@ -38,10 +35,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     omada_controller = hass.data[DOMAIN].pop(entry.entry_id)
     return await omada_controller.async_close()
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     pass

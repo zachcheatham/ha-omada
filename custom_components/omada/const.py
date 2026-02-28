@@ -1,4 +1,15 @@
+from homeassistant.const import Platform
+
 DOMAIN = "omada"
+
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.DEVICE_TRACKER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.UPDATE,
+]
 
 CONF_SITE = "site"
 CONF_SSID_FILTER = "ssid_filter"

@@ -9,6 +9,15 @@
           "password": "Password",
           "verify_ssl": "Verify SSL"
         }
+      },
+      "reconfigure": {
+        "data": {
+          "url": "URL",
+          "site": "Site",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL"
+        }
       }
     },
     "error": {
@@ -17,7 +26,11 @@
       "invalid_url": "Invalid URL. Please format as http(s)://(host)",
       "faulty_credentials": "Invalid username or password.",
       "api_error": "An API error occurred. Please see logs for more information.",
-      "unknown_site": "Unable to get site information. Please ensure the site id is correct."
+      "unknown_site": "Unable to get site information. Please ensure the site id is correct.",
+      "unsupported_version": "Unsupported controller version. Please upgrade your Omada controller."
+    },
+    "abort": {
+      "reconfigure_successful": "Re-configuration was successful."
     }
   },
   "options": {

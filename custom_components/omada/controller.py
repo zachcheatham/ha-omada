@@ -5,8 +5,6 @@ from aiohttp import CookieJar
 from datetime import datetime, timedelta
 from typing import Dict
 
-
-from homeassistant.components.device_tracker import DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_PASSWORD, CONF_URL, CONF_USERNAME, CONF_VERIFY_SSL)
@@ -28,7 +26,7 @@ from .const import (CONF_SITE, CONF_SSID_FILTER, CONF_DISCONNECT_TIMEOUT,
                     CONF_ENABLE_CLIENT_UPTIME_SENSORS, CONF_ENABLE_CLIENT_BLOCK_SWITCH,
                     CONF_ENABLE_DEVICE_BANDWIDTH_SENSORS, CONF_ENABLE_DEVICE_RADIO_UTILIZATION_SENSORS,
                     CONF_ENABLE_DEVICE_CONTROLS, CONF_ENABLE_DEVICE_STATISTICS_SENSORS,
-                    CONF_ENABLE_DEVICE_CLIENTS_SENSORS, DOMAIN as OMADA_DOMAIN)
+                    CONF_ENABLE_DEVICE_CLIENTS_SENSORS, PLATFORMS, DOMAIN as OMADA_DOMAIN)
 from .omada_entity import OmadaEntity, OmadaEntityDescription
 
 LOGGER = logging.getLogger(__name__)
@@ -194,7 +192,7 @@ class OmadaController:
         for func in self._on_close:
             func()
 
-        return await self.hass.config_entries.async_unload_platforms(self._config_entry, [DOMAIN])
+        return await self.hass.config_entries.async_unload_platforms(self._config_entry, PLATFORMS)
 
     def is_client_allowed(self, client_mac: str) -> bool:
         """Return whether a client can be included due to the ssid filter settings"""
@@ -303,7 +301,7 @@ class OmadaController:
                         ):
                             er.async_remove(entry.entity_id)
                             dr.async_remove_device(device_entry.id)
-                        
+
                         # Remove Omada from device if other entries exist
                         elif (
                             len(
