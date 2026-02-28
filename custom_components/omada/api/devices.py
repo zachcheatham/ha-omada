@@ -78,6 +78,14 @@ class Device(APIItem):
         return int(self._raw.get("cpuUtil", 0))
 
     @property
+    def poe_support(self) -> bool:
+        return bool(self._raw.get("poeSupport", False))
+
+    @property
+    def poe_remaining(self) -> float | None:
+        return float(self._raw.get("poeRemain", None))
+
+    @property
     def memory(self) -> int:
         return int(self._raw.get("memUtil", 0))
 

@@ -10,7 +10,7 @@ from typing import Dict, Any, Mapping
 
 from homeassistant.components.sensor import (DOMAIN, SensorDeviceClass, SensorEntity,
                                              SensorEntityDescription)
-from homeassistant.const import (UnitOfInformation, UnitOfDataRate,
+from homeassistant.const import (UnitOfInformation, UnitOfDataRate, UnitOfPower,
                                  SIGNAL_STRENGTH_DECIBELS,
                                  SIGNAL_STRENGTH_DECIBELS_MILLIWATT, PERCENTAGE)
 from homeassistant.core import callback
@@ -36,6 +36,7 @@ RSSI_SENSOR = "rssi"
 SNR_SENSOR = "snr"
 CPU_USAGE_SENSOR = "cpu_usage"
 MEMORY_USAGE_SENSOR = "memory_usage"
+POE_REMAINING = "poe_remaining"
 CLIENTS_SENSOR = "clients"
 CLIENTS_2G_SENSOR = "2ghz_clients"
 CLIENTS_5G_SENSOR = "5ghz_clients"
@@ -110,7 +111,7 @@ def client_tx_value_fn(controller: OmadaController, mac: str) -> float:
         return round(controller.api.clients[mac].tx_rate / 1048576, 3)
     else:
         return 0
-    
+
 @callback
 def client_rssi_value_fn(controller: OmadaController, mac: str) -> float | None:
     """Retrieve client current RSSI"""
@@ -118,7 +119,7 @@ def client_rssi_value_fn(controller: OmadaController, mac: str) -> float | None:
         return round(controller.api.clients[mac].rssi)
     else:
         return None
-    
+
 @callback
 def client_snr_value_fn(controller: OmadaController, mac: str) -> float | None:
     """Retrieve client current SNR"""
@@ -180,6 +181,12 @@ def device_cpu_value_fn(controller: OmadaController, mac: str) -> int:
 def device_memory_value_fn(controller: OmadaController, mac: str) -> int:
     """Retrieve device current memory usage"""
     return controller.api.devices[mac].memory
+
+
+@callback
+def device_poe_remaining_value_fn(controller: OmadaController, mac: str) -> int:
+    """Retrieve device current remaining poe power"""
+    return round(controller.api.devices[mac].poe_remaining, 2)
 
 
 @callback
@@ -554,6 +561,22 @@ DEVICE_ENTITY_DESCRIPTIONS: Dict[str, OmadaSensorEntityDescription] = {
         name_fn=lambda *_: "Memory Usage",
         unique_id_fn=unique_id_fn,
         value_fn=device_memory_value_fn
+    ),
+    POE_REMAINING: OmadaSensorEntityDescription(
+        domain=DOMAIN,
+        key=POE_REMAINING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        has_entity_name=True,
+        icon="mdi:lightning-bolt",
+        allowed_fn=lambda controller, _: (controller.option_device_statistics_sensors and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: controller.api.devices[mac].poe_support,
+        available_fn=lambda controller, _: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "PoE power remaing",
+        unique_id_fn=unique_id_fn,
+        value_fn=device_poe_remaining_value_fn
     ),
     UPTIME_SENSOR: OmadaSensorEntityDescription(
         domain=DOMAIN,
