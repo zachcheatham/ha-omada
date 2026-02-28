@@ -46,7 +46,7 @@ class OperationForbidden(RequestError):
     pass
 
 
-class UnknownSite(RequestError):
+class UnknownSite(OmadaApiException):
     pass
 
 
