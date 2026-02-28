@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+- Added reconnect all clients button
+- Added POE Statistics (Thanks @bmadzinski)
+- Added option to reconfigure integration (user, password, controller url)
+- Fixed errors when reloading the integration
+- Fixed issue when catching unknown site errors during setup.
+
 ## 0.8.0
 - Added device reboot button (Thanks @RvRijsselt)
 - Fixed OptionsFlow incompatibility with Home Assistant 2025.12

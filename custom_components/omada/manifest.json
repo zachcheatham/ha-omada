@@ -4,6 +4,6 @@
   "documentation": "https://github.com/zachcheatham/ha-omada",
   "codeowners": ["@zachcheatham"],
   "config_flow": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "iot_class": "local_polling"
 }
