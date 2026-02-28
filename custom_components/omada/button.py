@@ -28,6 +28,7 @@ from .omada_controller_entity import (
 )
 
 AI_OPTIMIZATION_BUTTON = "ai_optimization"
+RECONNECT_ALL_CLIENTS_BUTTON = "reconnect_all_clients"
 REBOOT_BUTTON = "reboot"
 RECONNECT_BUTTON = "reconnect"
 
@@ -36,6 +37,11 @@ LOGGER = logging.getLogger(__name__)
 @callback
 async def start_rf_planning_fn(api: Controller) -> None:
     await api.start_rf_planning()
+
+@callback
+async def reconnect_all_clients_fn(api: Controller) -> None:
+    for client in api.clients.items.values():
+        await api.clients.async_reconnect(client.mac)
 
 @callback
 async def reboot_device_fn(api: Controller, mac: str) -> None:
@@ -103,6 +109,18 @@ CONTROLLER_ENTITY_DESCRIPTIONS: dict[
         name_fn=lambda *_: "Start WLAN Optimization",
         unique_id_fn=controller_unique_id_fn,
         activate_fn=start_rf_planning_fn
+    ),
+    RECONNECT_ALL_CLIENTS_BUTTON: OmadaControllerButtonEntityDescription(
+        domain=DOMAIN,
+        key=RECONNECT_ALL_CLIENTS_BUTTON,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        has_entity_name=True,
+        icon="mdi:chart-box",
+        available_fn=lambda controller: controller.available,
+        device_info_fn=controller_device_info_fn,
+        name_fn=lambda *_: "Reconnect All Clients",
+        unique_id_fn=controller_unique_id_fn,
+        activate_fn=reconnect_all_clients_fn
     )
 }
 
