@@ -33,11 +33,17 @@ class APIItems:
         self._item_cls = item_cls
         self._data_key: str = data_key
 
+    def build_update_request(self):
+        return (
+            "GET",
+            self._end_point,
+            [("filters.active", "true"), ("currentPage", "1"), ("currentPageSize", "1000000")],
+            None,
+        )
+
     async def update(self, update_details: bool = False):
-        response = await self._request("GET", self._end_point, params=[
-            ("filters.active", "true"), ("currentPage",
-                                         "1"), ("currentPageSize", "1000000")
-        ])
+        method, end_point, params, json = self.build_update_request()
+        response = await self._request(method, end_point, params=params, json=json)
 
         if self._data_key == "":
             # Response is a list
@@ -51,7 +57,7 @@ class APIItems:
 
         if update_details and self._has_details:
             for key, item in self.items.items():
-                await self.update_details(key, item)         
+                await self.update_details(key, item)
 
     @abstractmethod
     def update_details(self, key: str, item: APIItem) -> None:

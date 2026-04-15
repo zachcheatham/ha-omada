@@ -29,6 +29,25 @@ CONNECT_TYPE_WIRED_USER = 2
 class Clients(APIItems):
     def __init__(self, request):
         super().__init__(request, END_POINT, "mac", Client, data_key="data")
+        self.use_v6_openapi = False
+
+    def build_update_request(self):
+        if self.use_v6_openapi:
+            return (
+                "POST",
+                self._end_point,
+                None,
+                {
+                    "filters": {"active": True},
+                    "sorts": {},
+                    "hideHealthUnsupported": True,
+                    "page": 1,
+                    "pageSize": 100,
+                    "scope": 1,
+                },
+            )
+
+        return super().build_update_request()
 
     async def async_reconnect(self, mac: str) -> None:
         await self._request("POST", "/cmd/clients/{}/reconnect".format(mac))
