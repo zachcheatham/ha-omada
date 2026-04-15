@@ -15,6 +15,7 @@ from .known_clients import KnownClients
 LOGGER = logging.getLogger(__name__)
 
 API_PATH = "/api/v2"
+OPEN_API_PATH = "/openapi/v2"
 
 
 @dataclass
@@ -47,7 +48,7 @@ class Controller:
         self._ssl_context = ssl_context
         self._site_id = None
         self._token = None
-        self.clients = Clients(self._site_request)
+        self.clients = Clients(self._client_request)
         self.devices = Devices(self._site_request)
         self.known_clients = KnownClients(self._site_request)
         self.ssids = set()
@@ -75,6 +76,7 @@ class Controller:
 
         response = await self._request("get", f"{self.url}/api/info")
         self.version = response["controllerVer"]
+        self.clients.use_v6_openapi = self.version >= "6.0.0"
         if self.version >= "5.0.0":
             self.controller_id = response["omadacId"]
 
@@ -165,6 +167,50 @@ class Controller:
 
         return await self._controller_request(method, endpoint, params=params, json=json, private=True)
 
+    async def _client_request(self, method, end_point, params=None, json=None):
+        """Perform a client request using the v6 openapi path when required."""
+
+        if self.version >= "6.0.0":
+            return await self._openapi_site_request(method, end_point, params=params, json=json)
+
+        return await self._site_request(method, end_point, params=params, json=json)
+
+    async def _openapi_site_request(self, method, end_point, params=None, json=None):
+        """Perform a site request against the openapi path using the current session."""
+
+        endpoint = None
+        if self.version >= "5.0.0":
+            endpoint = f"/sites/{self._site_id}{end_point}"
+        else:
+            endpoint = f"/sites/{self.site}{end_point}"
+
+        return await self._openapi_controller_request(method, endpoint, params=params, json=json)
+
+    async def _openapi_controller_request(self, method, end_point, params=None, json=None):
+        """Perform an openapi request using the existing authenticated session."""
+
+        if not self.version:
+            raise Exception(
+                "Controller version has not been fetched. Please call update_status() first."
+            )
+
+        if self.version >= "5.0.0":
+            url = f"{self.url}{OPEN_API_PATH}/{self.controller_id}{end_point}"
+        else:
+            url = f"{self.url}{OPEN_API_PATH}{end_point}"
+
+        return await self._request(
+            method,
+            url,
+            params=params,
+            json=json,
+            private=True,
+            extra_headers={
+                "X-Requested-With": "XMLHttpRequest",
+                "Omada-Request-Source": "web-local",
+            },
+        )
+
     async def _controller_request(
             self, method, end_point, params=None, json=None, private=False
     ):
@@ -185,7 +231,7 @@ class Controller:
             method, url, params=params, json=json, private=private
         )
 
-    async def _request(self, method, url, params=None, json=None, private=False):
+    async def _request(self, method, url, params=None, json=None, private=False, extra_headers=None):
         """Perform a request. Will automatically handle the login token if private is set to True."""
 
         headers = {}
@@ -202,6 +248,9 @@ class Controller:
                 if params is None:
                     params = []
                 params.append(("token", self._token))
+
+        if extra_headers:
+            headers.update(extra_headers)
 
         LOGGER.debug("Requesting: %s - Params: %s - JSON: %s - Headers %s", url, params, json, headers)
 
