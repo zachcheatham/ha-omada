@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Mapping
 
 from homeassistant.components.device_tracker import DOMAIN
-from homeassistant.components.device_tracker.config_entry import ScannerEntity
+from homeassistant.components.device_tracker import ScannerEntity
 from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry
