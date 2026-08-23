@@ -30,6 +30,7 @@ from .omada_controller_entity import (
 AI_OPTIMIZATION_BUTTON = "ai_optimization"
 RECONNECT_ALL_CLIENTS_BUTTON = "reconnect_all_clients"
 REBOOT_BUTTON = "reboot"
+FORCE_PROVISION_BUTTON = "force_provision"
 RECONNECT_BUTTON = "reconnect"
 
 LOGGER = logging.getLogger(__name__)
@@ -46,6 +47,10 @@ async def reconnect_all_clients_fn(api: Controller) -> None:
 @callback
 async def reboot_device_fn(api: Controller, mac: str) -> None:
     await api.devices.trigger_reboot(mac)
+
+@callback
+async def force_provision_device_fn(api: Controller, mac: str) -> None:
+    await api.devices.trigger_force_provision(mac)
 
 @callback
 async def reconnect_client_fn(api: Controller, mac: str) -> None:
@@ -141,6 +146,21 @@ DEVICE_ENTITY_DESCRIPTIONS: dict[
         name_fn=lambda *_: "Reboot",
         unique_id_fn=unique_id_fn,
         activate_fn=reboot_device_fn
+    ),
+    FORCE_PROVISION_BUTTON: OmadaDeviceButtonEntityDescription(
+        domain=DOMAIN,
+        key=FORCE_PROVISION_BUTTON,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        has_entity_name=True,
+        icon="mdi:sync",
+        allowed_fn=lambda controller, _: (controller.option_device_controls and
+                                          controller.option_track_devices),
+        supported_fn=lambda controller, mac: True,
+        available_fn=lambda controller, mac: controller.available,
+        device_info_fn=device_device_info_fn,
+        name_fn=lambda *_: "Force Provision",
+        unique_id_fn=unique_id_fn,
+        activate_fn=force_provision_device_fn
     )
 }
 

@@ -283,6 +283,9 @@ class Devices(APIItems):
     async def trigger_reboot(self, mac: str) -> None:
         await self._request("POST", f"/cmd/devices/{mac}/reboot", json={"mac": mac})
 
+    async def trigger_force_provision(self, mac: str) -> None:
+        await self._request("POST", f"/cmd/devices/{mac}/forceProvision", json={"mac": mac})
+
     async def trigger_update(self, mac: str) -> None:
         await self._request("POST", f"/cmd/devices/{mac}/onlineUpgrade", json={"mac": mac})
 
