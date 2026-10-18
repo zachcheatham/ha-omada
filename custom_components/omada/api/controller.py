@@ -170,7 +170,7 @@ class Controller:
     async def _client_request(self, method, end_point, params=None, json=None):
         """Perform a client request using the v6 openapi path when required."""
 
-        if self.version >= "6.0.0":
+        if self.version >= "6.0.0" and not end_point.startswith("/cmd/"):
             return await self._openapi_site_request(method, end_point, params=params, json=json)
 
         return await self._site_request(method, end_point, params=params, json=json)
