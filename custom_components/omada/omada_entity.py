@@ -48,7 +48,7 @@ def client_device_info_fn(api: Controller, mac: str) -> DeviceInfo:
 
     return DeviceInfo(
         connections={(CONNECTION_NETWORK_MAC, mac)},
-        default_name=client.name
+        name=client.name
     )
 
 
