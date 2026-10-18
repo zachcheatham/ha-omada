@@ -37,6 +37,7 @@ This integration is designed to be installed via [HACS](https://hacs.xyz/).
 * **Controls (Primarily for Access Points):**
   * Enable/Disable 2.4GHz, 5GHz, and 6GHz radios (switches).
   * Enable/Disable individual SSIDs per AP (switches).
+  * Force provision managed Omada devices.
 * **Firmware Updates:**
   * Update entity to show available firmware, current version, and trigger upgrades.
   * Release notes for pending updates.
